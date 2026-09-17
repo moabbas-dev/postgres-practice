@@ -52,7 +52,7 @@ function App() {
       <div className="flex h-dvh w-full flex-col items-center justify-center gap-3 bg-canvas px-6 text-center text-text-primary">
         <h1 className="text-lg font-semibold text-danger">Database failed to start</h1>
         <p className="max-w-md text-sm text-text-secondary">{dbState.message}</p>
-        <button onClick={() => window.location.reload()} className="mt-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-canvas">
+        <button onClick={() => window.location.reload()} className="mt-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-canvas cursor-pointer">
           Reload
         </button>
       </div>
@@ -83,7 +83,7 @@ function App() {
         >
           <ExerciseSidebar currentExerciseId={exercise.id} onSelect={selectExercise} />
         </aside>
-        {leftOpen && <div className="fixed inset-0 z-10 bg-black/40 lg:hidden" onClick={() => setLeftOpen(false)} />}
+        {leftOpen && <div className="fixed inset-0 z-10 cursor-pointer bg-black/40 lg:hidden" onClick={() => setLeftOpen(false)} />}
 
         <Workspace
           key={exercise.id}
@@ -102,7 +102,7 @@ function App() {
         >
           <SchemaExplorer />
         </aside>
-        {rightOpen && <div className="fixed inset-0 z-10 bg-black/40 xl:hidden" onClick={() => setRightOpen(false)} />}
+        {rightOpen && <div className="fixed inset-0 z-10 cursor-pointer bg-black/40 xl:hidden" onClick={() => setRightOpen(false)} />}
       </div>
     </div>
   )

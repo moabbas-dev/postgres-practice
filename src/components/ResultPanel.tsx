@@ -44,7 +44,7 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 rounded-t-md px-3 py-1.5 text-xs font-medium transition-colors ${
+      className={`flex cursor-pointer items-center gap-1.5 rounded-t-md px-3 py-1.5 text-xs font-medium transition-colors ${
         active ? 'bg-surface-raised text-text-primary' : 'text-text-secondary hover:text-text-primary'
       }`}
     >
@@ -107,15 +107,15 @@ function HistoryTab({ history, onRestore, onDelete }: { history: QueryHistoryEnt
       {history.map((entry) => (
         <div key={entry.id} className="group flex items-start gap-2 border-b border-border-subtle px-3 py-2 hover:bg-surface-hover">
           <OutcomeDot outcome={entry.outcome} />
-          <button onClick={() => onRestore(entry.sql)} className="min-w-0 flex-1 text-left">
+          <button onClick={() => onRestore(entry.sql)} className="min-w-0 flex-1 cursor-pointer text-left">
             <pre className="whitespace-pre-wrap break-all font-mono text-[11px] text-text-secondary group-hover:text-text-primary">{entry.sql}</pre>
             <div className="mt-0.5 text-[10px] text-text-muted">{new Date(entry.ranAt).toLocaleTimeString()}</div>
           </button>
           <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100">
-            <button onClick={() => onRestore(entry.sql)} title="Restore" className="rounded p-1 text-text-muted hover:bg-surface-hover hover:text-accent">
+            <button onClick={() => onRestore(entry.sql)} title="Restore" className="cursor-pointer rounded p-1 text-text-muted hover:bg-surface-hover hover:text-accent">
               <RotateCcw className="h-3.5 w-3.5" />
             </button>
-            <button onClick={() => onDelete(entry.id)} title="Delete" className="rounded p-1 text-text-muted hover:bg-surface-hover hover:text-danger">
+            <button onClick={() => onDelete(entry.id)} title="Delete" className="cursor-pointer rounded p-1 text-text-muted hover:bg-surface-hover hover:text-danger">
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>

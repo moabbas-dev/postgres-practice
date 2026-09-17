@@ -27,7 +27,7 @@ export function ExerciseSidebar({ currentExerciseId, onSelect }: ExerciseSidebar
           <div key={level.id} className="border-b border-border-subtle">
             <button
               onClick={() => setOpenLevel(isOpen ? -1 : level.id)}
-              className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-surface-hover"
+              className="flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left hover:bg-surface-hover"
             >
               <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-text-muted transition-transform ${isOpen ? '' : '-rotate-90'}`} />
               <div className="min-w-0 flex-1">
@@ -52,7 +52,7 @@ export function ExerciseSidebar({ currentExerciseId, onSelect }: ExerciseSidebar
                     <li key={ex.id}>
                       <button
                         onClick={() => onSelect(ex.id)}
-                        className={`flex w-full items-center gap-2 px-3 py-1.5 pl-8 text-left text-xs transition-colors ${
+                        className={`flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 pl-8 text-left text-xs transition-colors ${
                           isActive ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
                         }`}
                       >

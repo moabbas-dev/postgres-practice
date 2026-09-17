@@ -16,7 +16,7 @@ export function EditorToolbar({ onRun, onSubmit, onFormat, onReset, isRunning, i
       <button
         onClick={onRun}
         disabled={busy}
-        className="flex items-center gap-1.5 rounded-md bg-surface-raised px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:bg-surface-hover disabled:opacity-50"
+        className="flex items-center gap-1.5 rounded-md bg-surface-raised px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:bg-surface-hover disabled:opacity-50 cursor-pointer"
       >
         {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 text-accent" />}
         Run
@@ -25,17 +25,17 @@ export function EditorToolbar({ onRun, onSubmit, onFormat, onReset, isRunning, i
       <button
         onClick={onSubmit}
         disabled={busy}
-        className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-canvas transition-colors hover:bg-accent/90 disabled:opacity-50"
+        className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-canvas transition-colors hover:bg-accent/90 disabled:opacity-50 cursor-pointer"
       >
         {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
         Submit
       </button>
 
       <div className="ml-auto flex items-center gap-1">
-        <button onClick={onFormat} title="Format query" className="rounded-md p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary">
+        <button onClick={onFormat} title="Format query" className="rounded-md p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary cursor-pointer">
           <Sparkles className="h-4 w-4" />
         </button>
-        <button onClick={onReset} title="Reset to starter query" className="rounded-md p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary">
+        <button onClick={onReset} title="Reset to starter query" className="rounded-md p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary cursor-pointer">
           <RotateCcw className="h-4 w-4" />
         </button>
       </div>

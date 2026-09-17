@@ -56,4 +56,54 @@ describe('guardReadOnly', () => {
     // parser, so a SELECT that merely mentions a forbidden word is also blocked.
     expect(() => guardReadOnly("SELECT 'insert' AS word")).toThrow(GuardError)
   })
+
+  it('allows a SELECT preceded by a -- comment', () => {
+    expect(() => guardReadOnly('-- Write your PostgreSQL query here\nSELECT * FROM warehouses;')).not.toThrow()
+  })
+
+  it('allows a SELECT preceded by a /* */ comment', () => {
+    expect(() => guardReadOnly('/* Query warehouses */\nSELECT * FROM warehouses;')).not.toThrow()
+  })
+
+  it('allows leading blank lines and whitespace before a comment and query', () => {
+    expect(() => guardReadOnly('\n\n  -- leading comment\n\n  SELECT * FROM warehouses;')).not.toThrow()
+  })
+
+  it('allows a trailing -- comment after the query', () => {
+    expect(() => guardReadOnly('SELECT * FROM warehouses; -- trailing note')).not.toThrow()
+  })
+
+  it('allows a trailing /* */ comment after the query', () => {
+    expect(() => guardReadOnly('SELECT * FROM warehouses /* note */')).not.toThrow()
+  })
+
+  it('allows a WITH query preceded by comments', () => {
+    expect(() =>
+      guardReadOnly('-- CTE example\nWITH x AS (SELECT 1) SELECT * FROM x;')
+    ).not.toThrow()
+  })
+
+  it('allows a VALUES query preceded by comments', () => {
+    expect(() => guardReadOnly('/* literal rows */\nVALUES (1), (2), (3);')).not.toThrow()
+  })
+
+  it('allows a comment between statement keywords', () => {
+    expect(() => guardReadOnly('SELECT /* inline */ * FROM warehouses;')).not.toThrow()
+  })
+
+  it('rejects a query that is only comments', () => {
+    expect(() => guardReadOnly('-- just a comment\n/* another comment */')).toThrow(GuardError)
+  })
+
+  it('rejects INSERT preceded by a comment', () => {
+    expect(() => guardReadOnly('-- sneaky\nINSERT INTO warehouses (name) VALUES (1);')).toThrow(GuardError)
+  })
+
+  it('rejects DROP TABLE preceded by a comment', () => {
+    expect(() => guardReadOnly('/* drop it */\nDROP TABLE warehouses;')).toThrow(GuardError)
+  })
+
+  it('rejects a write statement disguised behind a comment that looks like a SELECT keyword', () => {
+    expect(() => guardReadOnly('-- SELECT this is actually a comment\nDELETE FROM warehouses;')).toThrow(GuardError)
+  })
 })

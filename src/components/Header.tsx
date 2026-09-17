@@ -14,7 +14,7 @@ interface HeaderProps {
 export function Header({ theme, onToggleTheme, onToggleLeftPanel, onToggleRightPanel, onResetProgress, completedCount, totalCount }: HeaderProps) {
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border-subtle bg-surface px-3">
-      <button onClick={onToggleLeftPanel} className="rounded-md p-1.5 text-text-secondary hover:bg-surface-hover lg:hidden" title="Toggle exercises">
+      <button onClick={onToggleLeftPanel} className="cursor-pointer rounded-md p-1.5 text-text-secondary hover:bg-surface-hover lg:hidden" title="Toggle exercises">
         <ListTree className="h-4 w-4" />
       </button>
 
@@ -33,13 +33,13 @@ export function Header({ theme, onToggleTheme, onToggleLeftPanel, onToggleRightP
       </div>
 
       <div className="ml-auto flex items-center gap-1">
-        <button onClick={onResetProgress} title="Reset all progress" className="rounded-md p-1.5 text-text-secondary hover:bg-surface-hover hover:text-danger">
+        <button onClick={onResetProgress} title="Reset all progress" className="cursor-pointer rounded-md p-1.5 text-text-secondary hover:bg-surface-hover hover:text-danger">
           <RotateCcw className="h-4 w-4" />
         </button>
-        <button onClick={onToggleTheme} title="Toggle theme" className="rounded-md p-1.5 text-text-secondary hover:bg-surface-hover">
+        <button onClick={onToggleTheme} title="Toggle theme" className="cursor-pointer rounded-md p-1.5 text-text-secondary hover:bg-surface-hover">
           {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
-        <button onClick={onToggleRightPanel} className="rounded-md p-1.5 text-text-secondary hover:bg-surface-hover xl:hidden" title="Toggle schema explorer">
+        <button onClick={onToggleRightPanel} className="cursor-pointer rounded-md p-1.5 text-text-secondary hover:bg-surface-hover xl:hidden" title="Toggle schema explorer">
           <Table2 className="h-4 w-4" />
         </button>
       </div>

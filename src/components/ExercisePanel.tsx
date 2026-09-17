@@ -28,7 +28,7 @@ export function ExercisePanel({ exercise, isCompleted, onPrev, onNext, hasPrev, 
           <button
             onClick={onPrev}
             disabled={!hasPrev}
-            className="rounded p-1 text-text-muted hover:bg-surface-hover hover:text-text-primary disabled:pointer-events-none disabled:opacity-30"
+            className="cursor-pointer rounded p-1 text-text-muted hover:bg-surface-hover hover:text-text-primary disabled:pointer-events-none disabled:opacity-30"
             title="Previous exercise"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -36,7 +36,7 @@ export function ExercisePanel({ exercise, isCompleted, onPrev, onNext, hasPrev, 
           <button
             onClick={onNext}
             disabled={!hasNext}
-            className="rounded p-1 text-text-muted hover:bg-surface-hover hover:text-text-primary disabled:pointer-events-none disabled:opacity-30"
+            className="cursor-pointer rounded p-1 text-text-muted hover:bg-surface-hover hover:text-text-primary disabled:pointer-events-none disabled:opacity-30"
             title="Next exercise"
           >
             <ChevronRight className="h-4 w-4" />
@@ -90,7 +90,7 @@ export function ExercisePanel({ exercise, isCompleted, onPrev, onNext, hasPrev, 
           {revealedHints < exercise.hints.length && (
             <button
               onClick={() => setRevealedHints((n) => n + 1)}
-              className="mt-2 rounded-md border border-border-subtle px-2.5 py-1 text-[11px] text-text-secondary hover:border-accent hover:text-accent"
+              className="mt-2 cursor-pointer rounded-md border border-border-subtle px-2.5 py-1 text-[11px] text-text-secondary hover:border-accent hover:text-accent"
             >
               Reveal hint {revealedHints + 1} of {exercise.hints.length}
             </button>
@@ -103,7 +103,7 @@ export function ExercisePanel({ exercise, isCompleted, onPrev, onNext, hasPrev, 
           {!showSolution ? (
             <button
               onClick={() => setShowSolution(true)}
-              className="flex items-center gap-1.5 rounded-md border border-border-subtle px-2.5 py-1.5 text-[11px] text-text-secondary hover:border-accent hover:text-accent"
+              className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border-subtle px-2.5 py-1.5 text-[11px] text-text-secondary hover:border-accent hover:text-accent"
             >
               <Sparkles className="h-3.5 w-3.5" />
               Show official solution

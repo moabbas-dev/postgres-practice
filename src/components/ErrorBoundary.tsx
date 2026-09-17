@@ -29,7 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
             {'\n\n'}
             {this.state.error.stack}
           </pre>
-          <button onClick={() => window.location.reload()} className="mt-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-canvas">
+          <button onClick={() => window.location.reload()} className="mt-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-canvas cursor-pointer">
             Reload
           </button>
         </div>
