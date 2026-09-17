@@ -97,7 +97,7 @@ export const level2Exercises: Exercise[] = [
     description: "Return the `order_number` and `order_date` of orders placed between January 1, 2025 and March 31, 2025 (inclusive).",
     tablesInvolved: ['orders'],
     conceptTags: ['BETWEEN', 'dates'],
-    hints: [{ order: 1, text: "BETWEEN works with dates and timestamps too: BETWEEN '2025-01-01' AND '2025-03-31'." }],
+    hints: [{ order: 1, text: "BETWEEN works with dates and timestamps too, but order_date is a timestamp — an upper bound of '2025-03-31' means midnight, cutting off the rest of that day. Include a time component: BETWEEN '2025-01-01' AND '2025-03-31 23:59:59'." }],
     solution: {
       sql: "SELECT order_number, order_date FROM orders WHERE order_date BETWEEN '2025-01-01' AND '2025-03-31 23:59:59';",
       explanation: 'Because order_date is a timestamp, the upper bound needs a time component to include the entirety of March 31st — otherwise it would be treated as midnight.',
