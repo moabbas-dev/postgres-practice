@@ -290,4 +290,143 @@ WHERE discontinued::numeric / total > 0.1;`,
       conceptsUsed: ['CTE', 'FILTER', 'casting'],
     },
   }),
+  defineExercise({
+    id: 'l5-15',
+    level: 5,
+    order: 15,
+    title: 'Above-average-sized departments',
+    difficultyScore: 4,
+    description: 'Using two CTEs — one counting employees per department, another averaging those counts — return `department_id` and `emp_count` for departments with more employees than the company-wide average department size.',
+    tablesInvolved: ['employees'],
+    conceptTags: ['CTE', 'multiple CTEs'],
+    hints: [{ order: 1, text: 'The second CTE has exactly one row; it can be referenced without an explicit JOIN condition, since it only ever contributes that single row to every match.' }],
+    solution: {
+      sql: `WITH dept_counts AS (
+  SELECT department_id, COUNT(*) AS emp_count FROM employees GROUP BY department_id
+),
+overall_avg AS (
+  SELECT AVG(emp_count) AS avg_count FROM dept_counts
+)
+SELECT dc.department_id, dc.emp_count
+FROM dept_counts dc, overall_avg oa
+WHERE dc.emp_count > oa.avg_count;`,
+      explanation: 'Listing two CTEs separated by a comma in the FROM clause cross-joins them — harmless here since overall_avg is always exactly one row, so it just attaches the same average to every dept_counts row.',
+      conceptsUsed: ['CTE', 'multiple CTEs'],
+    },
+  }),
+  defineExercise({
+    id: 'l5-16',
+    level: 5,
+    order: 16,
+    title: 'Loyal gold-tier customers',
+    difficultyScore: 4,
+    description: "Using INTERSECT, return the `id` of customers who are BOTH in the 'gold' tier AND have placed 5 or more orders.",
+    tablesInvolved: ['customers', 'orders'],
+    conceptTags: ['INTERSECT', 'HAVING'],
+    hints: [{ order: 1, text: 'The second SELECT can use its own GROUP BY / HAVING before INTERSECT compares the two result sets.' }],
+    solution: {
+      sql: `SELECT id FROM customers WHERE tier = 'gold'
+INTERSECT
+SELECT customer_id FROM orders GROUP BY customer_id HAVING COUNT(*) >= 5;`,
+      explanation: 'Each side of INTERSECT can be an arbitrarily complex query on its own — here the second side is itself a GROUP BY/HAVING query — as long as both sides produce the same column shape.',
+      conceptsUsed: ['INTERSECT', 'HAVING'],
+    },
+  }),
+  defineExercise({
+    id: 'l5-17',
+    level: 5,
+    order: 17,
+    title: 'Suppliers with nothing discontinued',
+    difficultyScore: 4,
+    description: 'Using EXCEPT, return the `id` of suppliers who supply at least one product, but have never had one of their products discontinued.',
+    tablesInvolved: ['suppliers', 'products'],
+    conceptTags: ['EXCEPT', 'subquery'],
+    hints: [{ order: 1, text: 'Start from suppliers who supply at least one product, then subtract off any supplier that appears among discontinued products.' }],
+    solution: {
+      sql: `SELECT id FROM suppliers WHERE id IN (SELECT supplier_id FROM products)
+EXCEPT
+SELECT supplier_id FROM products WHERE status = 'discontinued';`,
+      explanation: 'Starting from "suppliers with at least one product" (rather than all suppliers) matters here — without it, a supplier with zero products would incorrectly pass through EXCEPT too, since it also never appears among discontinued products.',
+      conceptsUsed: ['EXCEPT', 'subquery'],
+    },
+  }),
+  defineExercise({
+    id: 'l5-18',
+    level: 5,
+    order: 18,
+    title: 'Ticket urgency split by status',
+    difficultyScore: 3,
+    description: "For every ticket `status`, return `urgent_tickets` (priority 'high' or 'urgent') and `normal_tickets` (any other priority), computed with FILTER.",
+    tablesInvolved: ['support_tickets'],
+    conceptTags: ['FILTER', 'conditional aggregation'],
+    hints: [{ order: 1, text: 'Two separate COUNT(*) FILTER (WHERE ...) expressions, with complementary conditions, sit side by side in the same SELECT.' }],
+    solution: {
+      sql: `SELECT status,
+       COUNT(*) FILTER (WHERE priority IN ('high', 'urgent')) AS urgent_tickets,
+       COUNT(*) FILTER (WHERE priority NOT IN ('high', 'urgent')) AS normal_tickets
+FROM support_tickets
+GROUP BY status;`,
+      explanation: 'Because the two FILTER conditions are exact complements of each other, every row is counted in exactly one of the two columns, and urgent_tickets + normal_tickets always equals the total for that status.',
+      conceptsUsed: ['FILTER', 'conditional aggregation'],
+    },
+  }),
+  defineExercise({
+    id: 'l5-19',
+    level: 5,
+    order: 19,
+    title: 'Every product, rated or not',
+    difficultyScore: 4,
+    description: 'For every product, return its `id`, `name`, and `avg_rating` (rounded to 2 decimals) — products with no reviews should show 0, not be excluded.',
+    tablesInvolved: ['products', 'reviews'],
+    conceptTags: ['LEFT JOIN', 'COALESCE', 'GROUP BY'],
+    hints: [{ order: 1, text: 'LEFT JOIN reviews onto products, then COALESCE the averaged rating to 0 for products with no matching reviews.' }],
+    solution: {
+      sql: `SELECT p.id, p.name, ROUND(COALESCE(AVG(r.rating), 0), 2) AS avg_rating
+FROM products p
+LEFT JOIN reviews r ON r.product_id = p.id
+GROUP BY p.id, p.name;`,
+      explanation: 'AVG() over zero rows (an unmatched LEFT JOIN) produces NULL, not 0 — COALESCE is what turns that NULL into the 0 the exercise asks for.',
+      conceptsUsed: ['LEFT JOIN', 'COALESCE', 'GROUP BY'],
+    },
+    validation: { roundDecimals: 2 },
+  }),
+  defineExercise({
+    id: 'l5-20',
+    level: 5,
+    order: 20,
+    title: "Birth date, or 'Unknown'",
+    difficultyScore: 2,
+    description: "Return every customer's `email` and `birth_date` — but show the text 'Unknown' wherever birth_date is NULL, instead of leaving it blank.",
+    tablesInvolved: ['customers'],
+    conceptTags: ['COALESCE', 'casting'],
+    hints: [{ order: 1, text: "COALESCE requires both arguments to share a type — cast birth_date to text before combining it with the string 'Unknown'." }],
+    solution: {
+      sql: `SELECT email, COALESCE(birth_date::text, 'Unknown') AS birth_date FROM customers;`,
+      explanation: 'COALESCE(birth_date, \'Unknown\') would fail outright, since a date column and a text literal are not directly compatible — casting birth_date to text first makes both arguments the same type.',
+      conceptsUsed: ['COALESCE', 'casting'],
+    },
+  }),
+  defineExercise({
+    id: 'l5-21',
+    level: 5,
+    order: 21,
+    title: 'Payment success rate by method',
+    difficultyScore: 5,
+    description: 'Using a CTE that computes, per payment `method`, the total number of payments and the number with status = \'completed\' (via FILTER), return `method` and `success_rate_pct` (rounded to 2 decimals).',
+    tablesInvolved: ['payments'],
+    conceptTags: ['CTE', 'FILTER', 'NULLIF'],
+    hints: [{ order: 1, text: 'NULLIF(total, 0) guards the division in case a method somehow had zero payments.' }],
+    solution: {
+      sql: `WITH method_stats AS (
+  SELECT method, COUNT(*) AS total, COUNT(*) FILTER (WHERE status = 'completed') AS completed
+  FROM payments
+  GROUP BY method
+)
+SELECT method, ROUND(100.0 * completed / NULLIF(total, 0), 2) AS success_rate_pct
+FROM method_stats;`,
+      explanation: 'NULLIF(total, 0) turns a would-be division-by-zero into a NULL result instead of an error — defensive, even when the current data happens to make every total positive.',
+      conceptsUsed: ['CTE', 'FILTER', 'NULLIF'],
+    },
+    validation: { roundDecimals: 2 },
+  }),
 ]

@@ -287,4 +287,147 @@ WHERE c.tier = 'platinum';`,
       conceptsUsed: ['correlated subquery'],
     },
   }),
+  defineExercise({
+    id: 'l4-17',
+    level: 4,
+    order: 17,
+    title: 'Products with zero reviews, using NOT IN',
+    difficultyScore: 3,
+    description: 'Using NOT IN (not NOT EXISTS), list the `sku` and `name` of products that have never been reviewed.',
+    tablesInvolved: ['products', 'reviews'],
+    conceptTags: ['NOT IN', 'subquery'],
+    hints: [{ order: 1, text: 'WHERE id NOT IN (SELECT product_id FROM reviews) — safe here because reviews.product_id is never NULL.' }],
+    solution: {
+      sql: 'SELECT sku, name FROM products WHERE id NOT IN (SELECT product_id FROM reviews);',
+      explanation: 'NOT IN is a reasonable choice as long as the subquery column can never be NULL — if it could, a single NULL would make the whole NOT IN silently match nothing, which is why NOT EXISTS is usually the safer default.',
+      conceptsUsed: ['NOT IN', 'subquery'],
+    },
+  }),
+  defineExercise({
+    id: 'l4-18',
+    level: 4,
+    order: 18,
+    title: 'Distinct products stocked per warehouse',
+    difficultyScore: 4,
+    description: 'Using a RIGHT JOIN from `inventory` to `warehouses`, return every warehouse `code` with the number of distinct products it stocks, as `product_count` — every warehouse must appear even if it happened to stock nothing.',
+    tablesInvolved: ['inventory', 'warehouses'],
+    conceptTags: ['RIGHT JOIN', 'GROUP BY'],
+    hints: [{ order: 1, text: 'COUNT(DISTINCT i.product_id) avoids double-counting if a product somehow appeared twice for the same warehouse.' }],
+    solution: {
+      sql: 'SELECT w.code, COUNT(DISTINCT i.product_id) AS product_count FROM inventory i RIGHT JOIN warehouses w ON i.warehouse_id = w.id GROUP BY w.code;',
+      explanation: 'RIGHT JOIN guarantees every warehouse row survives regardless of how many (or how few) inventory rows match it.',
+      conceptsUsed: ['RIGHT JOIN', 'GROUP BY', 'COUNT'],
+    },
+  }),
+  defineExercise({
+    id: 'l4-19',
+    level: 4,
+    order: 19,
+    title: 'Employees hired before their manager',
+    difficultyScore: 4,
+    description: 'Using a self join on `employees`, list the `first_name` and `last_name` of employees who were hired before their own manager was.',
+    tablesInvolved: ['employees'],
+    conceptTags: ['self join', 'WHERE'],
+    hints: [{ order: 1, text: 'Self join employees to itself on manager_id = id, then compare the two hire_date columns.' }],
+    solution: {
+      sql: 'SELECT e.first_name, e.last_name FROM employees e JOIN employees m ON e.manager_id = m.id WHERE e.hire_date < m.hire_date;',
+      explanation: 'A self join is not limited to just fetching related columns — once employee and manager are side by side in the same row, any ordinary WHERE comparison between their columns becomes possible.',
+      conceptsUsed: ['self join', 'WHERE'],
+    },
+  }),
+  defineExercise({
+    id: 'l4-20',
+    level: 4,
+    order: 20,
+    title: 'Well-stocked APAC inventory',
+    difficultyScore: 3,
+    description: "Using the `inventory` many-to-many table, list the product `sku` and `quantity` for products stocked in warehouse 'WH-APAC' with a quantity greater than 100.",
+    tablesInvolved: ['inventory', 'warehouses', 'products'],
+    conceptTags: ['many-to-many', 'JOIN', 'WHERE'],
+    hints: [{ order: 1, text: 'Join through inventory to reach both warehouses and products, then filter on both the warehouse code and the quantity.' }],
+    solution: {
+      sql: `SELECT p.sku, i.quantity
+FROM inventory i
+JOIN warehouses w ON w.id = i.warehouse_id
+JOIN products p ON p.id = i.product_id
+WHERE w.code = 'WH-APAC' AND i.quantity > 100;`,
+      explanation: 'Filtering on both sides of the many-to-many relationship at once is routine once both tables have been joined in.',
+      conceptsUsed: ['many-to-many', 'JOIN', 'WHERE'],
+    },
+  }),
+  defineExercise({
+    id: 'l4-21',
+    level: 4,
+    order: 21,
+    title: "Priced above every 'Stationery' product",
+    difficultyScore: 4,
+    description: "Return the `sku` and `price` of products priced higher than EVERY product in the 'Stationery' category, using the ALL operator.",
+    tablesInvolved: ['products', 'categories'],
+    conceptTags: ['ALL', 'subquery'],
+    hints: [{ order: 1, text: 'price > ALL (subquery) means the price must beat the maximum value the subquery returns.' }],
+    solution: {
+      sql: `SELECT sku, price FROM products
+WHERE price > ALL (
+  SELECT price FROM products WHERE category_id = (SELECT id FROM categories WHERE name = 'Stationery')
+);`,
+      explanation: '`> ALL (subquery)` is true only when the value beats every single row the subquery returns — equivalent to, but often more readable than, comparing against `> (SELECT MAX(...))`.',
+      conceptsUsed: ['ALL', 'subquery'],
+    },
+    validation: { roundDecimals: 2 },
+  }),
+  defineExercise({
+    id: 'l4-22',
+    level: 4,
+    order: 22,
+    title: "Priced above at least one 'Skincare' product",
+    difficultyScore: 3,
+    description: "Return the `sku` and `price` of products priced higher than AT LEAST ONE product in the 'Skincare' category, using the ANY operator.",
+    tablesInvolved: ['products', 'categories'],
+    conceptTags: ['ANY', 'subquery'],
+    hints: [{ order: 1, text: 'price > ANY (subquery) only needs to beat the minimum value the subquery returns — a much weaker condition than ALL.' }],
+    solution: {
+      sql: `SELECT sku, price FROM products
+WHERE price > ANY (
+  SELECT price FROM products WHERE category_id = (SELECT id FROM categories WHERE name = 'Skincare')
+);`,
+      explanation: '`> ANY (subquery)` is true as soon as the value beats just one row from the subquery — in practice, equivalent to comparing against `> (SELECT MIN(...))`, and usually matches far more rows than ALL would.',
+      conceptsUsed: ['ANY', 'subquery'],
+    },
+    validation: { roundDecimals: 2 },
+  }),
+  defineExercise({
+    id: 'l4-23',
+    level: 4,
+    order: 23,
+    title: 'Customers with both a billing and shipping address',
+    difficultyScore: 4,
+    description: "Using two EXISTS checks, list the `email` of customers who have at least one 'billing' address AND at least one 'shipping' address.",
+    tablesInvolved: ['customers', 'addresses'],
+    conceptTags: ['EXISTS', 'correlated subquery'],
+    hints: [{ order: 1, text: 'Chain two separate EXISTS subqueries with AND, each correlated to the same outer customer.' }],
+    solution: {
+      sql: `SELECT email FROM customers c
+WHERE EXISTS (SELECT 1 FROM addresses a WHERE a.customer_id = c.id AND a.kind = 'billing')
+  AND EXISTS (SELECT 1 FROM addresses a WHERE a.customer_id = c.id AND a.kind = 'shipping');`,
+      explanation: 'Each EXISTS is independently correlated to the outer customer row; combining two of them with AND expresses "has at least one of each kind" without ever joining addresses directly (which would risk duplicating customer rows).',
+      conceptsUsed: ['EXISTS', 'correlated subquery'],
+    },
+  }),
+  defineExercise({
+    id: 'l4-24',
+    level: 4,
+    order: 24,
+    title: 'Active employee count per department',
+    difficultyScore: 3,
+    description: 'For every department, return its `name` and the number of active employees in it (as `active_employee_count`), computed with a scalar subquery in the SELECT list.',
+    tablesInvolved: ['departments', 'employees'],
+    conceptTags: ['correlated subquery', 'scalar subquery'],
+    hints: [{ order: 1, text: 'The subquery counts employees where department_id matches the outer department and is_active is true.' }],
+    solution: {
+      sql: `SELECT d.name, (SELECT COUNT(*) FROM employees e WHERE e.department_id = d.id AND e.is_active) AS active_employee_count
+FROM departments d;`,
+      explanation: 'Every department row gets its own independently-computed count, since the subquery is correlated on d.id and re-runs once per outer row.',
+      conceptsUsed: ['correlated subquery', 'scalar subquery'],
+    },
+  }),
 ]

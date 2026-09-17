@@ -346,4 +346,152 @@ JOIN ratings rt ON rt.category_id = rv.category_id;`,
     },
     validation: { roundDecimals: 2 },
   }),
+  defineExercise({
+    id: 'l8-15',
+    level: 8,
+    order: 15,
+    title: 'Department ancestor id arrays',
+    difficultyScore: 6,
+    description: "Using a recursive CTE, return every department's `id`, `name`, and an `ancestors` array containing the ids of every ancestor department from the root down (empty for the root itself).",
+    tablesInvolved: ['departments'],
+    conceptTags: ['recursive CTE', 'arrays'],
+    hints: [{ order: 1, text: 'Start the base case with an empty array (ARRAY[]::integer[]), then append the parent\'s own id at each recursive step with ||.' }],
+    solution: {
+      sql: `WITH RECURSIVE dept_tree AS (
+  SELECT id, name, parent_department_id, ARRAY[]::integer[] AS ancestors
+  FROM departments
+  WHERE parent_department_id IS NULL
+  UNION ALL
+  SELECT d.id, d.name, d.parent_department_id, dt.ancestors || dt.id
+  FROM departments d
+  JOIN dept_tree dt ON d.parent_department_id = dt.id
+)
+SELECT id, name, ancestors FROM dept_tree;`,
+      explanation: 'Instead of building a string breadcrumb, this recursive CTE accumulates an actual array — each step appends the parent\'s id (dt.id) onto the array it already carries, giving a full root-to-parent path.',
+      conceptsUsed: ['recursive CTE', 'arrays'],
+    },
+  }),
+  defineExercise({
+    id: 'l8-16',
+    level: 8,
+    order: 16,
+    title: 'Expand skills with LATERAL',
+    difficultyScore: 5,
+    description: "Using CROSS JOIN LATERAL with UNNEST, return `first_name`, `last_name`, and `skill` — one row per employee per skill.",
+    tablesInvolved: ['employees'],
+    conceptTags: ['LATERAL', 'UNNEST', 'arrays'],
+    hints: [{ order: 1, text: 'CROSS JOIN LATERAL UNNEST(e.skills) AS s(skill) treats the set-returning UNNEST as a joinable, aliased table.' }],
+    solution: {
+      sql: `SELECT e.first_name, e.last_name, s.skill
+FROM employees e
+CROSS JOIN LATERAL UNNEST(e.skills) AS s(skill);`,
+      explanation: 'Wrapping UNNEST in a LATERAL join (rather than calling it directly in the SELECT list) makes the pattern extend naturally to cases with more than one array or additional per-row logic.',
+      conceptsUsed: ['LATERAL', 'UNNEST'],
+    },
+  }),
+  defineExercise({
+    id: 'l8-17',
+    level: 8,
+    order: 17,
+    title: 'Streaks of the same star rating',
+    difficultyScore: 7,
+    description: 'For each product, find every run of 3 or more CONSECUTIVE reviews (ordered by created_at) that share the same rating. Return `product_id`, `rating`, `run_start`, and `run_length`.',
+    tablesInvolved: ['reviews'],
+    conceptTags: ['gaps and islands', 'ROW_NUMBER'],
+    hints: [
+      { order: 1, text: 'Compute two ROW_NUMBERs per product: one over all reviews, one over just the reviews sharing the same rating.' },
+      { order: 2, text: 'The difference between the two row numbers is constant for as long as the rating keeps repeating consecutively — the same trick as the day-streak problem, but on a categorical column instead of a date.' },
+    ],
+    solution: {
+      sql: `WITH numbered AS (
+  SELECT product_id, rating, created_at,
+         ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY created_at) AS rn_all,
+         ROW_NUMBER() OVER (PARTITION BY product_id, rating ORDER BY created_at) AS rn_rating
+  FROM reviews
+),
+grouped AS (
+  SELECT product_id, rating, created_at, (rn_all - rn_rating) AS grp FROM numbered
+)
+SELECT product_id, rating, MIN(created_at) AS run_start, COUNT(*) AS run_length
+FROM grouped
+GROUP BY product_id, rating, grp
+HAVING COUNT(*) >= 3;`,
+      explanation: 'Gaps-and-islands is not limited to dates: as long as you can define "the next expected value" (the next row_number, here) and compare it to what actually shows up, the same (row_number - row_number_within_group) trick isolates consecutive runs of any repeating categorical value.',
+      conceptsUsed: ['gaps and islands', 'ROW_NUMBER'],
+    },
+  }),
+  defineExercise({
+    id: 'l8-18',
+    level: 8,
+    order: 18,
+    title: 'Root categories with their subcategory list',
+    difficultyScore: 5,
+    description: 'For every root category (no parent), return its `id`, `name`, and a `children` JSON array of its direct subcategory names, sorted alphabetically.',
+    tablesInvolved: ['categories'],
+    conceptTags: ['self join', 'JSONB_AGG'],
+    hints: [{ order: 1, text: 'Self join categories to itself (root to child), group by the root, and JSONB_AGG the child names.' }],
+    solution: {
+      sql: `SELECT root.id, root.name, JSONB_AGG(child.name ORDER BY child.name) AS children
+FROM categories root
+JOIN categories child ON child.parent_category_id = root.id
+WHERE root.parent_category_id IS NULL
+GROUP BY root.id, root.name;`,
+      explanation: 'This is the same self-join pattern used for the org chart, paired with JSONB_AGG instead of a plain SELECT — a two-level hierarchy does not need a recursive CTE at all.',
+      conceptsUsed: ['self join', 'JSONB_AGG'],
+    },
+  }),
+  defineExercise({
+    id: 'l8-19',
+    level: 8,
+    order: 19,
+    title: 'Department subtrees with high average salary',
+    difficultyScore: 6,
+    description: 'For every department, compute the AVERAGE salary of everyone in that department AND all of its sub-departments (recursively). Return `department_id` and `avg_subtree_salary`, keeping only subtrees averaging above $80,000.',
+    tablesInvolved: ['departments', 'employees'],
+    conceptTags: ['recursive CTE', 'hierarchical rollup', 'HAVING'],
+    hints: [{ order: 1, text: 'Reuse the (ancestor, descendant) department-pair CTE, join it to employees, then GROUP BY ancestor with AVG instead of SUM.' }],
+    solution: {
+      sql: `WITH RECURSIVE dept_tree AS (
+  SELECT id AS ancestor_id, id AS dept_id FROM departments
+  UNION ALL
+  SELECT dt.ancestor_id, d.id
+  FROM departments d
+  JOIN dept_tree dt ON d.parent_department_id = dt.dept_id
+)
+SELECT dt.ancestor_id AS department_id, ROUND(AVG(e.salary), 2) AS avg_subtree_salary
+FROM dept_tree dt
+JOIN employees e ON e.department_id = dt.dept_id
+GROUP BY dt.ancestor_id
+HAVING AVG(e.salary) > 80000;`,
+      explanation: 'The same expanded (ancestor, descendant) pair set from the SUM rollup works unchanged for an AVG rollup — only the aggregate function and the HAVING condition need to change.',
+      conceptsUsed: ['recursive CTE', 'hierarchical rollup', 'HAVING'],
+    },
+    validation: { roundDecimals: 2 },
+  }),
+  defineExercise({
+    id: 'l8-20',
+    level: 8,
+    order: 20,
+    title: "Each order's single most expensive line item",
+    difficultyScore: 5,
+    description: 'Using CROSS JOIN LATERAL, return `order_id`, and the `name` and `line_total` (quantity × unit_price × (1 - discount_pct/100)) of its single most expensive line item.',
+    tablesInvolved: ['orders', 'order_items', 'products'],
+    conceptTags: ['LATERAL', 'top-N per group'],
+    hints: [{ order: 1, text: 'Inside the LATERAL subquery, join order_items to products, filter to the current order, and ORDER BY the computed line_total DESC LIMIT 1.' }],
+    solution: {
+      sql: `SELECT o.id AS order_id, top_item.name, top_item.line_total
+FROM orders o
+CROSS JOIN LATERAL (
+  SELECT p.name, oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100.0) AS line_total
+  FROM order_items oi
+  JOIN products p ON p.id = oi.product_id
+  WHERE oi.order_id = o.id
+  ORDER BY line_total DESC
+  LIMIT 1
+) top_item;`,
+      explanation: 'Because line_total is computed rather than a stored column, it has to be derived inside the LATERAL subquery itself before it can be ordered on — this is the same "top 1 per group" shape as the cheapest-product-per-category exercise, just with a computed sort key.',
+      conceptsUsed: ['LATERAL', 'top-N per group'],
+    },
+    validation: { roundDecimals: 2 },
+  }),
 ]

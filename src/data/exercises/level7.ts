@@ -324,4 +324,160 @@ SELECT customer_id, order_date, status FROM ranked WHERE rn <= 2;`,
       conceptsUsed: ['ROW_NUMBER', 'top-N per group'],
     },
   }),
+  defineExercise({
+    id: 'l7-17',
+    level: 7,
+    order: 17,
+    title: 'Cumulative distribution of prices',
+    difficultyScore: 4,
+    description: 'For every product, return `name`, `price`, and `cume_dist_val` — the fraction of products priced at or below it, rounded to 4 decimals.',
+    tablesInvolved: ['products'],
+    conceptTags: ['CUME_DIST'],
+    hints: [{ order: 1, text: 'CUME_DIST() OVER (ORDER BY price) returns a value in (0, 1]: the proportion of rows with a value less than or equal to the current one.' }],
+    solution: {
+      sql: `SELECT name, price, ROUND(CUME_DIST() OVER (ORDER BY price)::numeric, 4) AS cume_dist_val FROM products;`,
+      explanation: 'Unlike PERCENT_RANK (which starts at 0), CUME_DIST always ends at exactly 1 for the highest-ranked row(s), since by definition 100% of rows are at or below the maximum.',
+      conceptsUsed: ['CUME_DIST'],
+    },
+    validation: { roundDecimals: 4 },
+  }),
+  defineExercise({
+    id: 'l7-18',
+    level: 7,
+    order: 18,
+    title: 'Salary percentile within department',
+    difficultyScore: 4,
+    description: 'For every employee, return `department_id`, `first_name`, `last_name`, `salary`, and `salary_percentile` — their PERCENT_RANK (0 to 1) within their own department, rounded to 4 decimals.',
+    tablesInvolved: ['employees'],
+    conceptTags: ['PERCENT_RANK', 'PARTITION BY'],
+    hints: [{ order: 1, text: 'PERCENT_RANK() OVER (PARTITION BY department_id ORDER BY salary) resets the 0-to-1 scale separately for each department.' }],
+    solution: {
+      sql: `SELECT department_id, first_name, last_name, salary,
+       ROUND(PERCENT_RANK() OVER (PARTITION BY department_id ORDER BY salary)::numeric, 4) AS salary_percentile
+FROM employees;`,
+      explanation: 'PERCENT_RANK() always assigns 0 to the lowest-ranked row in its partition (and 1 to the highest, unless there are ties), computed as (rank - 1) / (partition size - 1).',
+      conceptsUsed: ['PERCENT_RANK', 'PARTITION BY'],
+    },
+    validation: { roundDecimals: 4 },
+  }),
+  defineExercise({
+    id: 'l7-19',
+    level: 7,
+    order: 19,
+    title: 'Third most expensive price per category',
+    difficultyScore: 5,
+    description: 'For every category that has at least 3 products, return `category_id` and `third_highest_price` — the price of the 3rd most expensive product in that category, using NTH_VALUE.',
+    tablesInvolved: ['products'],
+    conceptTags: ['NTH_VALUE', 'window frame'],
+    hints: [
+      { order: 1, text: 'NTH_VALUE(price, 3) OVER (PARTITION BY category_id ORDER BY price DESC ...) picks out the 3rd row in that ordering.' },
+      { order: 2, text: 'Like LAST_VALUE, NTH_VALUE needs its frame widened to the whole partition, or it will return NULL for the first two rows.' },
+    ],
+    solution: {
+      sql: `SELECT DISTINCT category_id,
+       NTH_VALUE(price, 3) OVER (
+         PARTITION BY category_id ORDER BY price DESC
+         ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+       ) AS third_highest_price
+FROM products;`,
+      explanation: 'NTH_VALUE returns the same widened-frame value on every row of the partition, so DISTINCT collapses that back down to one row per category — otherwise every product row would repeat its category\'s answer.',
+      conceptsUsed: ['NTH_VALUE', 'window frame'],
+    },
+    validation: { roundDecimals: 2 },
+  }),
+  defineExercise({
+    id: 'l7-20',
+    level: 7,
+    order: 20,
+    title: "Each order's date from two orders ago",
+    difficultyScore: 4,
+    description: 'For every order, return `customer_id`, `order_date`, and `order_2_ago` — that customer\'s order date from 2 orders before this one, defaulting to the current order\'s own date if there aren\'t 2 prior orders.',
+    requirements: ['Within each customer, break ties in order_date by the order id, ascending.'],
+    tablesInvolved: ['orders'],
+    conceptTags: ['LAG', 'PARTITION BY'],
+    hints: [{ order: 1, text: 'LAG takes optional 2nd and 3rd arguments: the offset (how many rows back) and a default value to use when that row does not exist.' }],
+    solution: {
+      sql: 'SELECT customer_id, order_date, LAG(order_date, 2, order_date) OVER (PARTITION BY customer_id ORDER BY order_date, id) AS order_2_ago FROM orders;',
+      explanation: 'LAG(column, offset, default) generalizes the single-argument form used earlier — offset 2 looks two rows back, and the third argument supplies a fallback instead of NULL when there is no such row.',
+      conceptsUsed: ['LAG', 'PARTITION BY'],
+    },
+  }),
+  defineExercise({
+    id: 'l7-21',
+    level: 7,
+    order: 21,
+    title: 'Running inventory total within category',
+    difficultyScore: 4,
+    description: 'For every product, return `category_id`, `id`, `inventory_count`, and `running_total` — the cumulative sum of inventory_count within that category, ordered by product id.',
+    tablesInvolved: ['products'],
+    conceptTags: ['SUM() OVER', 'PARTITION BY', 'running totals'],
+    hints: [{ order: 1, text: 'Combining PARTITION BY with ORDER BY resets the running total at the start of each category.' }],
+    solution: {
+      sql: 'SELECT category_id, id, inventory_count, SUM(inventory_count) OVER (PARTITION BY category_id ORDER BY id) AS running_total FROM products;',
+      explanation: 'PARTITION BY restarts the accumulation per category, while ORDER BY (with the default frame) makes it a running total rather than a fixed per-category sum.',
+      conceptsUsed: ['SUM() OVER', 'PARTITION BY', 'running totals'],
+    },
+  }),
+  defineExercise({
+    id: 'l7-22',
+    level: 7,
+    order: 22,
+    title: 'Total catalog size on every row',
+    difficultyScore: 2,
+    description: 'For every product, return `name`, `price`, and `total_products` — the total number of products in the entire catalog, repeated on every single row.',
+    tablesInvolved: ['products'],
+    conceptTags: ['COUNT() OVER', 'window function'],
+    hints: [{ order: 1, text: 'COUNT(*) OVER () with empty parentheses treats the whole result set as one partition, so every row sees the same total.' }],
+    solution: {
+      sql: 'SELECT name, price, COUNT(*) OVER () AS total_products FROM products;',
+      explanation: 'Unlike a plain aggregate (which collapses all rows into one), a window function with no PARTITION BY still returns one output row per input row — it just computes the same value for all of them.',
+      conceptsUsed: ['COUNT() OVER', 'window function'],
+    },
+    validation: { roundDecimals: 2 },
+  }),
+  defineExercise({
+    id: 'l7-23',
+    level: 7,
+    order: 23,
+    title: 'Top 2 revenue-generating categories',
+    difficultyScore: 5,
+    description: 'Using a CTE of total revenue per category, return `category_id` and `revenue` (rounded to 2 decimals) for the top 2 categories by revenue — including any category tied for 2nd place.',
+    tablesInvolved: ['order_items', 'products'],
+    conceptTags: ['DENSE_RANK', 'CTE', 'top-N per group'],
+    hints: [{ order: 1, text: 'DENSE_RANK() (not ROW_NUMBER) is what allows a tie for 2nd place to let more than 2 categories through.' }],
+    solution: {
+      sql: `WITH cat_revenue AS (
+  SELECT p.category_id, SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100.0)) AS revenue
+  FROM order_items oi
+  JOIN products p ON p.id = oi.product_id
+  GROUP BY p.category_id
+),
+ranked AS (
+  SELECT category_id, revenue, DENSE_RANK() OVER (ORDER BY revenue DESC) AS rnk FROM cat_revenue
+)
+SELECT category_id, ROUND(revenue, 2) AS revenue FROM ranked WHERE rnk <= 2;`,
+      explanation: 'DENSE_RANK assigns the same rank to tied rows without leaving a gap afterward, so "rank <= 2" correctly means "1st place or 2nd place," even if several categories are tied for 2nd.',
+      conceptsUsed: ['DENSE_RANK', 'CTE', 'top-N per group'],
+    },
+    validation: { roundDecimals: 2 },
+  }),
+  defineExercise({
+    id: 'l7-24',
+    level: 7,
+    order: 24,
+    title: 'Price range per category',
+    difficultyScore: 4,
+    description: 'For every category, return `category_id` and `price_range` — the difference between its most expensive and least expensive product, using window functions (not GROUP BY).',
+    tablesInvolved: ['products'],
+    conceptTags: ['MAX() OVER', 'MIN() OVER', 'window function'],
+    hints: [{ order: 1, text: 'MAX(price) OVER (PARTITION BY category_id) and MIN(price) OVER (PARTITION BY category_id) can be combined with ordinary arithmetic in the same SELECT.' }],
+    solution: {
+      sql: `SELECT DISTINCT category_id,
+       MAX(price) OVER (PARTITION BY category_id) - MIN(price) OVER (PARTITION BY category_id) AS price_range
+FROM products;`,
+      explanation: 'MAX() and MIN() work as window functions just as well as they work as GROUP BY aggregates — the difference is that every row keeps its own identity, so DISTINCT is needed here to collapse back to one row per category.',
+      conceptsUsed: ['MAX() OVER', 'MIN() OVER'],
+    },
+    validation: { roundDecimals: 2 },
+  }),
 ]

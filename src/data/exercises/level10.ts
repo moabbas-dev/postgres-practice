@@ -325,4 +325,141 @@ WHERE status = 'discontinued' AND margin_percentile >= 0.9;`,
     },
     validation: { roundDecimals: 4 },
   }),
+  defineExercise({
+    id: 'l10-11',
+    level: 10,
+    order: 11,
+    title: 'Sessionize events by inactivity gap',
+    difficultyScore: 9,
+    description: "Within each browsing session, split events into sub-sessions whenever more than 120 seconds pass between consecutive events. Return `session_id`, `sub_session_number` (starting at 1), `event_count`, `started_at`, and `ended_at` for every resulting sub-session.",
+    tablesInvolved: ['events'],
+    conceptTags: ['gaps and islands', 'window functions', 'LAG'],
+    hints: [
+      { order: 1, text: 'Compute the gap (in seconds) since the previous event in the same session with LAG + EXTRACT(EPOCH FROM ...); the very first event of a session has no previous row, so treat that as a gap too.' },
+      { order: 2, text: 'Flag each event 1 if it starts a new sub-session (first event, or gap > 120) else 0, then a running SUM() of that flag within the session is the sub-session number.' },
+    ],
+    solution: {
+      sql: `WITH gaps AS (
+  SELECT id, session_id, occurred_at,
+         EXTRACT(EPOCH FROM (occurred_at - LAG(occurred_at) OVER (PARTITION BY session_id ORDER BY occurred_at, id))) AS gap_seconds
+  FROM events
+),
+flags AS (
+  SELECT id, session_id, occurred_at,
+         CASE WHEN gap_seconds IS NULL OR gap_seconds > 120 THEN 1 ELSE 0 END AS is_new_sub
+  FROM gaps
+),
+numbered AS (
+  SELECT session_id, occurred_at,
+         SUM(is_new_sub) OVER (PARTITION BY session_id ORDER BY occurred_at, id) AS sub_session_number
+  FROM flags
+)
+SELECT session_id, sub_session_number, COUNT(*) AS event_count, MIN(occurred_at) AS started_at, MAX(occurred_at) AS ended_at
+FROM numbered
+GROUP BY session_id, sub_session_number;`,
+      explanation: 'A running SUM() of a 0/1 "new group started here" flag is a general-purpose alternative to the row-number-difference trick — it increments by 1 exactly at each gap, producing a ready-made group id (here, the sub-session number) with no extra arithmetic needed.',
+      conceptsUsed: ['gaps and islands', 'window functions', 'LAG'],
+    },
+  }),
+  defineExercise({
+    id: 'l10-12',
+    level: 10,
+    order: 12,
+    title: "Each customer's favorite category and spend percentile",
+    difficultyScore: 9,
+    description: 'For every customer with at least one order, find the single category they have spent the most on (their `top_category_id`), and their `spend_percentile` — a PERCENT_RANK (rounded to 4 decimals) of their total spend across ALL customers.',
+    requirements: ['Break ties for top_category_id by category_id, ascending.'],
+    tablesInvolved: ['orders', 'order_items', 'products'],
+    conceptTags: ['multi-stage CTE pipeline', 'ROW_NUMBER', 'PERCENT_RANK'],
+    hints: [
+      { order: 1, text: 'Stage 1: per-customer, per-category spend. Stage 2: ROW_NUMBER each customer\'s categories by spend to find their favorite. Stage 3: total spend per customer, ranked with PERCENT_RANK across everyone.' },
+    ],
+    solution: {
+      sql: `WITH customer_category_spend AS (
+  SELECT o.customer_id, p.category_id, SUM(oi.quantity * oi.unit_price * (1 - oi.discount_pct / 100.0)) AS cat_spend
+  FROM orders o
+  JOIN order_items oi ON oi.order_id = o.id
+  JOIN products p ON p.id = oi.product_id
+  GROUP BY o.customer_id, p.category_id
+),
+top_category AS (
+  SELECT customer_id, category_id,
+         ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY cat_spend DESC, category_id) AS rn
+  FROM customer_category_spend
+),
+customer_totals AS (
+  SELECT customer_id, SUM(cat_spend) AS total_spend FROM customer_category_spend GROUP BY customer_id
+),
+ranked_totals AS (
+  SELECT customer_id, total_spend, PERCENT_RANK() OVER (ORDER BY total_spend) AS spend_percentile FROM customer_totals
+)
+SELECT tc.customer_id, tc.category_id AS top_category_id, ROUND(rt.spend_percentile::numeric, 4) AS spend_percentile
+FROM top_category tc
+JOIN ranked_totals rt ON rt.customer_id = tc.customer_id
+WHERE tc.rn = 1;`,
+      explanation: 'This threads two independent questions — "which category dominates this customer\'s spend" and "how does this customer\'s total spend compare to everyone else\'s" — through the same customer_category_spend CTE, then joins the two answers back together at the end.',
+      conceptsUsed: ['multi-stage CTE pipeline', 'ROW_NUMBER', 'PERCENT_RANK'],
+    },
+    validation: { roundDecimals: 4 },
+  }),
+  defineExercise({
+    id: 'l10-13',
+    level: 10,
+    order: 13,
+    title: 'JSON profiles for the top 10% of spenders',
+    difficultyScore: 8,
+    description: "For customers with at least one completed payment, compute total completed spend and rank it with PERCENT_RANK across ALL customers. For those in the top 10% (percent rank >= 0.9), return `customer_id` and a `profile` JSON object with keys 'tier' and 'total_spend'.",
+    tablesInvolved: ['customers', 'orders', 'payments'],
+    conceptTags: ['PERCENT_RANK', 'jsonb_build_object', 'CTE'],
+    hints: [{ order: 1, text: 'Unlike the cohort-scoped percentile exercise, this PERCENT_RANK has no PARTITION BY at all — it ranks every customer against the entire customer base.' }],
+    solution: {
+      sql: `WITH customer_spend AS (
+  SELECT o.customer_id, SUM(p.amount) AS total_spend
+  FROM orders o
+  JOIN payments p ON p.order_id = o.id
+  WHERE p.status = 'completed'
+  GROUP BY o.customer_id
+),
+ranked AS (
+  SELECT customer_id, total_spend, PERCENT_RANK() OVER (ORDER BY total_spend) AS pct_rank FROM customer_spend
+)
+SELECT c.id AS customer_id,
+       jsonb_build_object('tier', c.tier, 'total_spend', ROUND(r.total_spend, 2)) AS profile
+FROM ranked r
+JOIN customers c ON c.id = r.customer_id
+WHERE r.pct_rank >= 0.9;`,
+      explanation: 'Dropping PARTITION BY entirely (as opposed to the earlier cohort-scoped PERCENT_RANK exercise) makes every customer compete against the whole customer base at once, which is exactly what "top 10% overall" requires.',
+      conceptsUsed: ['PERCENT_RANK', 'jsonb_build_object'],
+    },
+  }),
+  defineExercise({
+    id: 'l10-14',
+    level: 10,
+    order: 14,
+    title: 'Each product\'s single best co-purchase partner',
+    difficultyScore: 9,
+    description: 'For every product that has been ordered alongside at least one other product, use LATERAL to find its single most frequently co-purchased partner. Return `product_id`, `best_partner_id`, and `co_occurrences`.',
+    requirements: ['Break ties by the partner product id, ascending.'],
+    tablesInvolved: ['order_items', 'products'],
+    conceptTags: ['LATERAL', 'self join', 'market basket analysis'],
+    hints: [
+      { order: 1, text: 'First build every (product_1, product_2, co_occurrences) pair with a self join on order_id, excluding a product pairing with itself — this time keep BOTH directions of each pair, since every product needs to look up its own partners.' },
+      { order: 2, text: 'Then CROSS JOIN LATERAL each product to its own top-1 row from that pairs table.' },
+    ],
+    solution: {
+      sql: `WITH pairs AS (
+  SELECT oi1.product_id AS product_1, oi2.product_id AS product_2, COUNT(*) AS co_occurrences
+  FROM order_items oi1
+  JOIN order_items oi2 ON oi1.order_id = oi2.order_id AND oi1.product_id <> oi2.product_id
+  GROUP BY oi1.product_id, oi2.product_id
+)
+SELECT p.id AS product_id, top.product_2 AS best_partner_id, top.co_occurrences
+FROM products p
+CROSS JOIN LATERAL (
+  SELECT product_2, co_occurrences FROM pairs WHERE pairs.product_1 = p.id ORDER BY co_occurrences DESC, product_2 LIMIT 1
+) top;`,
+      explanation: 'This differs from the earlier "top 10 pairs" exercise in one crucial way: that one used product_1 < product_2 to count each unordered pair once, but a per-product lookup needs BOTH directions present, since product A looking up its partners needs a row starting from A even though the same pair also appears starting from B.',
+      conceptsUsed: ['LATERAL', 'self join', 'market basket analysis'],
+    },
+  }),
 ]

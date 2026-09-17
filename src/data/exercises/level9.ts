@@ -349,4 +349,135 @@ HAVING COUNT(*) - 1 > 0;`,
       conceptsUsed: ['recursive CTE'],
     },
   }),
+  defineExercise({
+    id: 'l9-13',
+    level: 9,
+    order: 13,
+    title: "Each department subtree's top earner share",
+    difficultyScore: 8,
+    description: "For every department, using the recursive subtree rollup, find the single highest-paid employee anywhere in that subtree and return `department_id`, `total_subtree_salary`, and `top_earner_pct` — what percentage of the subtree's total salary that one employee represents (rounded to 2 decimals).",
+    requirements: ['Break salary ties by employee id, ascending.'],
+    tablesInvolved: ['departments', 'employees'],
+    conceptTags: ['recursive CTE', 'window functions', 'hierarchical rollup'],
+    hints: [
+      { order: 1, text: 'Build the (ancestor, descendant) department pairs first, then join to employees.' },
+      { order: 2, text: 'Two window functions over the same PARTITION BY ancestor_id: ROW_NUMBER (to find the top earner) and SUM (for the subtree total used as the percentage denominator).' },
+    ],
+    solution: {
+      sql: `WITH RECURSIVE dept_tree AS (
+  SELECT id AS ancestor_id, id AS dept_id FROM departments
+  UNION ALL
+  SELECT dt.ancestor_id, d.id FROM departments d JOIN dept_tree dt ON d.parent_department_id = dt.dept_id
+),
+subtree_emp AS (
+  SELECT dt.ancestor_id, e.id, e.salary,
+         ROW_NUMBER() OVER (PARTITION BY dt.ancestor_id ORDER BY e.salary DESC, e.id) AS rnk,
+         SUM(e.salary) OVER (PARTITION BY dt.ancestor_id) AS subtree_total
+  FROM dept_tree dt JOIN employees e ON e.department_id = dt.dept_id
+)
+SELECT ancestor_id AS department_id, ROUND(subtree_total, 2) AS total_subtree_salary,
+       ROUND(100.0 * salary / subtree_total, 2) AS top_earner_pct
+FROM subtree_emp WHERE rnk = 1;`,
+      explanation: 'Once the recursive CTE has flattened the hierarchy into (ancestor, descendant) pairs, everything else is ordinary window-function work: ROW_NUMBER finds the top earner per ancestor, and a second window SUM over the same partition supplies the total used for the percentage.',
+      conceptsUsed: ['recursive CTE', 'window functions', 'hierarchical rollup'],
+    },
+    validation: { roundDecimals: 2 },
+  }),
+  defineExercise({
+    id: 'l9-14',
+    level: 9,
+    order: 14,
+    title: 'Top spender per signup cohort',
+    difficultyScore: 7,
+    description: 'For each customer signup cohort (by month), use LATERAL to find its single highest lifetime-value customer (total completed payment amount). Return `cohort_month`, `customer_id`, and `lifetime_value`.',
+    tablesInvolved: ['customers', 'orders', 'payments'],
+    conceptTags: ['LATERAL', 'cohort analysis'],
+    hints: [{ order: 1, text: 'Compute lifetime_value per customer (with their cohort_month) in a CTE first, then LATERAL join each distinct cohort_month to its top-1 customer.' }],
+    solution: {
+      sql: `WITH customer_revenue AS (
+  SELECT c.id AS customer_id, DATE_TRUNC('month', c.signup_date) AS cohort_month, COALESCE(SUM(p.amount), 0) AS lifetime_value
+  FROM customers c
+  LEFT JOIN orders o ON o.customer_id = c.id
+  LEFT JOIN payments p ON p.order_id = o.id AND p.status = 'completed'
+  GROUP BY c.id, DATE_TRUNC('month', c.signup_date)
+)
+SELECT cm.cohort_month, top.customer_id, ROUND(top.lifetime_value, 2) AS lifetime_value
+FROM (SELECT DISTINCT cohort_month FROM customer_revenue) cm
+CROSS JOIN LATERAL (
+  SELECT customer_id, lifetime_value FROM customer_revenue cr WHERE cr.cohort_month = cm.cohort_month ORDER BY lifetime_value DESC, customer_id LIMIT 1
+) top;`,
+      explanation: 'Building a small "one row per cohort_month" table first, then LATERAL-joining each of those rows to its own top-1 lookup, is the same shape as the cheapest-product-per-category pattern — just with the group defined by a computed cohort_month instead of a foreign key.',
+      conceptsUsed: ['LATERAL', 'cohort analysis'],
+    },
+    validation: { roundDecimals: 2 },
+  }),
+  defineExercise({
+    id: 'l9-15',
+    level: 9,
+    order: 15,
+    title: '3-month rolling average of order volume',
+    difficultyScore: 6,
+    description: 'Using a CTE of monthly order counts, return `month`, `order_count`, and `rolling_avg_3mo` — the average order count over that month and the two preceding it (rounded to 2 decimals).',
+    tablesInvolved: ['orders'],
+    conceptTags: ['CTE', 'moving averages', 'ROWS BETWEEN'],
+    hints: [{ order: 1, text: 'Once the monthly totals are in a CTE, AVG(order_count) OVER (ORDER BY month ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) computes the moving average.' }],
+    solution: {
+      sql: `WITH monthly AS (
+  SELECT DATE_TRUNC('month', order_date) AS month, COUNT(*) AS order_count FROM orders GROUP BY DATE_TRUNC('month', order_date)
+)
+SELECT month, order_count, ROUND(AVG(order_count) OVER (ORDER BY month ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 2) AS rolling_avg_3mo
+FROM monthly;`,
+      explanation: 'This is the same ROWS BETWEEN 2 PRECEDING AND CURRENT ROW moving-average frame used on raw product prices earlier, applied here on top of a pre-aggregated monthly CTE — a common way to smooth out noisy period-over-period business metrics.',
+      conceptsUsed: ['CTE', 'moving averages', 'ROWS BETWEEN'],
+    },
+    validation: { roundDecimals: 2 },
+  }),
+  defineExercise({
+    id: 'l9-16',
+    level: 9,
+    order: 16,
+    title: 'Customer churn risk flag',
+    difficultyScore: 6,
+    description: "Using 2026-08-15 as \"today,\" for every customer who has placed at least one order, return `customer_id`, `tier`, `days_since_last_order`, and `risk_flag` — 'at_risk' if it has been more than 120 days since their last order, otherwise 'active'.",
+    tablesInvolved: ['customers', 'orders'],
+    conceptTags: ['CTE', 'CASE', 'date arithmetic'],
+    hints: [{ order: 1, text: 'Compute each customer\'s MAX(order_date) in a CTE first, then subtract it from the fixed reference date and classify the result with CASE.' }],
+    solution: {
+      sql: `WITH last_order AS (
+  SELECT customer_id, MAX(order_date) AS last_order_date FROM orders GROUP BY customer_id
+)
+SELECT c.id AS customer_id, c.tier,
+       (DATE '2026-08-15' - lo.last_order_date::date) AS days_since_last_order,
+       CASE WHEN (DATE '2026-08-15' - lo.last_order_date::date) > 120 THEN 'at_risk' ELSE 'active' END AS risk_flag
+FROM customers c
+JOIN last_order lo ON lo.customer_id = c.id;`,
+      explanation: 'Subtracting a date from a fixed reference date (rather than an unstable NOW()) keeps the query deterministic — the same business-logic CASE expression could just as easily flag any other kind of engagement drop-off.',
+      conceptsUsed: ['CTE', 'CASE', 'date arithmetic'],
+    },
+  }),
+  defineExercise({
+    id: 'l9-17',
+    level: 9,
+    order: 17,
+    title: "Each supplier's most-reviewed product",
+    difficultyScore: 6,
+    description: "For every supplier, find their single most-reviewed product (by review count) and return `supplier_id`, `name`, and `review_count` — include every product tied for the top spot.",
+    tablesInvolved: ['products', 'reviews'],
+    conceptTags: ['CTE', 'LEFT JOIN', 'RANK'],
+    hints: [{ order: 1, text: 'Count reviews per product in a CTE (products with none should count as 0), then RANK() that count within each supplier.' }],
+    solution: {
+      sql: `WITH review_counts AS (
+  SELECT product_id, COUNT(*) AS review_count FROM reviews GROUP BY product_id
+),
+ranked AS (
+  SELECT p.supplier_id, p.name, COALESCE(rc.review_count, 0) AS review_count,
+         RANK() OVER (PARTITION BY p.supplier_id ORDER BY COALESCE(rc.review_count, 0) DESC) AS review_rank
+  FROM products p
+  LEFT JOIN review_counts rc ON rc.product_id = p.id
+)
+SELECT supplier_id, name, review_count FROM ranked WHERE review_rank = 1;`,
+      explanation: 'LEFT JOIN plus COALESCE ensures a never-reviewed product counts as 0 rather than being dropped, so RANK() only picks it as the "top" product when a supplier genuinely has no reviews on anything.',
+      conceptsUsed: ['CTE', 'LEFT JOIN', 'RANK'],
+    },
+  }),
 ]
