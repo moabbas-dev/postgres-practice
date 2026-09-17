@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="paBgGlow" cx="50%" cy="26%" r="65%">
+      <stop offset="0%" stop-color="#17253D" stop-opacity="0.95" />
+      <stop offset="55%" stop-color="#0E1728" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#0A0E1A" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- background squircle -->
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="#0A0E1A" />
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#paBgGlow)" />
+
+  <!-- arena hexagon frame -->
+  <polygon points="256,74 412.4,165 412.4,347 256,438 99.6,347 99.6,165"
+    fill="none" stroke="#6FE0FF" stroke-opacity="0.6" stroke-width="7" stroke-linejoin="round" />
+
+  <!-- elephant mark, enlarged and centered for small-size legibility -->
+  <g transform="translate(256,252) scale(1.32) translate(-256,-252)">
+    <!-- ears (behind head) -->
+    <path d="M216,200 C190,168 148,162 128,190 C108,218 112,268 140,296 C162,318 196,308 210,278 C218,260 218,224 216,200 Z"
+      fill="#235777" />
+    <path d="M296,200 C322,168 364,162 384,190 C404,218 400,268 372,296 C350,318 316,308 302,278 C294,260 294,224 296,200 Z"
+      fill="#235777" />
+
+    <!-- ear layer-divider lines (subtle DB-stack cue, visible at larger sizes) -->
+    <path d="M130,215 Q165,205 205,215" fill="none" stroke="#8FE3FF" stroke-opacity="0.55" stroke-width="5" stroke-linecap="round" />
+    <path d="M128,255 Q168,248 212,258" fill="none" stroke="#8FE3FF" stroke-opacity="0.55" stroke-width="5" stroke-linecap="round" />
+    <path d="M382,215 Q347,205 307,215" fill="none" stroke="#8FE3FF" stroke-opacity="0.55" stroke-width="5" stroke-linecap="round" />
+    <path d="M384,255 Q344,248 300,258" fill="none" stroke="#8FE3FF" stroke-opacity="0.55" stroke-width="5" stroke-linecap="round" />
+
+    <!-- head -->
+    <circle cx="256" cy="222" r="86" fill="#4590C4" />
+    <ellipse cx="256" cy="274" rx="62" ry="46" fill="#4590C4" />
+
+    <!-- trunk -->
+    <path d="M228,300 C219,340 212,375 220,401 C225,417 238,426 253,422 C264,419 268,406 263,388 C258,368 256,338 284,300 Z"
+      fill="#4590C4" />
+
+    <!-- tusks as bracket glyphs -->
+    <path d="M236,308 L222,319 L236,330" fill="none" stroke="#B7EEFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M276,308 L290,319 L276,330" fill="none" stroke="#B7EEFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- eyes -->
+    <circle cx="221" cy="203" r="10" fill="#0A0E1A" />
+    <circle cx="291" cy="203" r="10" fill="#0A0E1A" />
+    <circle cx="223" cy="200" r="4" fill="#D8F6FF" />
+    <circle cx="293" cy="200" r="4" fill="#D8F6FF" />
+  </g>
+</svg>
