@@ -1,4 +1,4 @@
-import { Eye, Key, Link2, Table } from 'lucide-react'
+import { Eye, Key, Link2, Network, Table } from 'lucide-react'
 import { useState } from 'react'
 import { DATABASE_TABLES } from '../data/schemaExplorer'
 import { previewTable } from '../database/db'
@@ -14,7 +14,11 @@ const CATEGORY_LABELS: Record<string, string> = {
   reference: 'Reference',
 }
 
-export function SchemaExplorer() {
+interface SchemaExplorerProps {
+  onOpenDiagram: () => void
+}
+
+export function SchemaExplorer({ onOpenDiagram }: SchemaExplorerProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [preview, setPreview] = useState<QueryResult | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
@@ -103,7 +107,22 @@ export function SchemaExplorer() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-surface">
+    <div className="flex h-full flex-col overflow-hidden bg-surface">
+      <div className="flex h-8 shrink-0 items-center justify-between border-b border-border-subtle px-2">
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+          <Table className="h-3.5 w-3.5" />
+          Tables
+        </span>
+        <button
+          onClick={onOpenDiagram}
+          className="flex cursor-pointer items-center gap-1 rounded-md border border-border-subtle px-2 py-0.5 text-[11px] text-text-secondary hover:border-accent hover:text-accent"
+          title="Open the full entity-relationship diagram"
+        >
+          <Network className="h-3.5 w-3.5" />
+          See chart
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
       {Object.entries(grouped).map(([category, tables]) => (
         <div key={category} className="border-b border-border-subtle">
           <div className="px-3 pt-2.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">{CATEGORY_LABELS[category] ?? category}</div>
@@ -123,6 +142,7 @@ export function SchemaExplorer() {
           </ul>
         </div>
       ))}
+      </div>
     </div>
   )
 }

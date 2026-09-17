@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Clock, History, RotateCcw, Table2, Trash2, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Clock, History, RotateCcw, Table2, Trash2, XCircle } from 'lucide-react'
 import { useState } from 'react'
 import { ResultsTable } from './ResultsTable'
 import type { QueryExecution, QueryHistoryEntry, ValidationResult } from '../types'
@@ -9,33 +9,46 @@ interface ResultPanelProps {
   history: QueryHistoryEntry[]
   onRestoreHistory: (sql: string) => void
   onDeleteHistory: (id: string) => void
+  collapsed?: boolean
+  onToggleCollapsed?: () => void
 }
 
 type Tab = 'results' | 'history'
 
-export function ResultPanel({ execution, validation, history, onRestoreHistory, onDeleteHistory }: ResultPanelProps) {
+export function ResultPanel({ execution, validation, history, onRestoreHistory, onDeleteHistory, collapsed, onToggleCollapsed }: ResultPanelProps) {
   const [tab, setTab] = useState<Tab>('results')
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-surface">
-      {validation && <ValidationBanner validation={validation} />}
+      {!collapsed && validation && <ValidationBanner validation={validation} />}
 
       <div className="flex items-center gap-1 border-b border-border-subtle px-2 pt-1.5">
         <TabButton active={tab === 'results'} onClick={() => setTab('results')} icon={<Table2 className="h-3.5 w-3.5" />} label="Results" />
         <TabButton active={tab === 'history'} onClick={() => setTab('history')} icon={<History className="h-3.5 w-3.5" />} label={`History (${history.length})`} />
-        <div className="ml-auto pr-2 text-[11px] text-text-muted">
+        <div className="ml-auto flex items-center gap-2 pr-1 text-[11px] text-text-muted">
           {execution.status === 'success' && (
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" /> {execution.result.durationMs.toFixed(0)}ms · {execution.result.rowCount.toLocaleString()} rows
             </span>
           )}
+          {onToggleCollapsed && (
+            <button
+              onClick={onToggleCollapsed}
+              className="cursor-pointer rounded p-1 text-text-muted hover:bg-surface-hover hover:text-text-primary"
+              title={collapsed ? 'Expand results panel' : 'Collapse results panel'}
+            >
+              {collapsed ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
-        {tab === 'results' && <ResultsTab execution={execution} />}
-        {tab === 'history' && <HistoryTab history={history} onRestore={onRestoreHistory} onDelete={onDeleteHistory} />}
-      </div>
+      {!collapsed && (
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {tab === 'results' && <ResultsTab execution={execution} />}
+          {tab === 'history' && <HistoryTab history={history} onRestore={onRestoreHistory} onDelete={onDeleteHistory} />}
+        </div>
+      )}
     </div>
   )
 }
