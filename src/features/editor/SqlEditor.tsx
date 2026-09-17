@@ -1,5 +1,6 @@
 import Editor, { type OnMount } from '@monaco-editor/react'
-import { useEffect, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import type { editor as MonacoEditorNs } from 'monaco-editor'
 import { configureMonaco } from './monacoSetup'
 import { DATABASE_TABLES } from '../../data/schemaExplorer'
 
@@ -49,25 +50,62 @@ function registerSchemaCompletions(monacoInstance: typeof import('monaco-editor'
   })
 }
 
+export interface SqlEditorHandle {
+  /** The currently selected text in the editor, or '' if there is no selection. */
+  getSelectedText: () => string
+}
+
 interface SqlEditorProps {
   value: string
   onChange: (value: string) => void
   onRun?: () => void
+  onSubmit?: () => void
+  onRunSelected?: () => void
   theme: 'dark' | 'light'
   readOnly?: boolean
   height?: string | number
 }
 
-export function SqlEditor({ value, onChange, onRun, theme, readOnly, height = '100%' }: SqlEditorProps) {
+export const SqlEditor = forwardRef<SqlEditorHandle, SqlEditorProps>(function SqlEditor(
+  { value, onChange, onRun, onSubmit, onRunSelected, theme, readOnly, height = '100%' },
+  ref,
+) {
   const onRunRef = useRef(onRun)
+  const onSubmitRef = useRef(onSubmit)
+  const onRunSelectedRef = useRef(onRunSelected)
   useEffect(() => {
     onRunRef.current = onRun
   }, [onRun])
+  useEffect(() => {
+    onSubmitRef.current = onSubmit
+  }, [onSubmit])
+  useEffect(() => {
+    onRunSelectedRef.current = onRunSelected
+  }, [onRunSelected])
+
+  const editorRef = useRef<MonacoEditorNs.IStandaloneCodeEditor | null>(null)
+
+  useImperativeHandle(ref, () => ({
+    getSelectedText: () => {
+      const editor = editorRef.current
+      const selection = editor?.getSelection()
+      const model = editor?.getModel()
+      if (!editor || !selection || !model || selection.isEmpty()) return ''
+      return model.getValueInRange(selection)
+    },
+  }))
 
   const handleMount: OnMount = (editor, monacoInstance) => {
+    editorRef.current = editor
     registerSchemaCompletions(monacoInstance)
     editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.Enter, () => {
+      onSubmitRef.current?.()
+    })
+    editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.Quote, () => {
       onRunRef.current?.()
+    })
+    editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.Semicolon, () => {
+      onRunSelectedRef.current?.()
     })
   }
 
@@ -98,4 +136,4 @@ export function SqlEditor({ value, onChange, onRun, theme, readOnly, height = '1
       }}
     />
   )
-}
+})

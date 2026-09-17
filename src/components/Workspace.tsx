@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, NotebookText, PanelLeftClose } from 'lucide-react'
 import { ExercisePanel } from './ExercisePanel'
 import { EditorToolbar } from './EditorToolbar'
@@ -14,6 +14,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery'
 import { usePersistedCollapsed, usePersistedSize } from '../hooks/useResizablePanel'
 import type { Exercise, QueryExecution, ValidationResult } from '../types'
 import type { Theme } from '../hooks/useTheme'
+import type { SqlEditorHandle } from '../features/editor/SqlEditor'
 
 const SqlEditor = lazy(() => import('../features/editor/SqlEditor').then((m) => ({ default: m.SqlEditor })))
 
@@ -43,6 +44,7 @@ export function Workspace({ exercise, theme, onPrev, onNext, hasPrev, hasNext }:
   const [sql, setSql] = useState(() => progress?.lastQuery ?? exercise.starterQuery ?? DEFAULT_STARTER)
   const [execution, setExecution] = useState<QueryExecution>({ status: 'idle' })
   const [validation, setValidation] = useState<ValidationResult | null>(null)
+  const sqlEditorRef = useRef<SqlEditorHandle>(null)
 
   const isDesktop = useMediaQuery('(min-width: 1024px)')
   const [descriptionWidth, setDescriptionWidth] = usePersistedSize('pg-arena:description-width', 380)
@@ -52,21 +54,30 @@ export function Workspace({ exercise, theme, onPrev, onNext, hasPrev, hasNext }:
 
   const isCompleted = progress?.status === 'completed'
 
-  async function handleRun() {
+  async function runQuery(queryText: string) {
     if (execution.status === 'running') return
     setExecution({ status: 'running' })
     setValidation(null)
     try {
-      const result = await runUserQuery(sql)
+      const result = await runUserQuery(queryText)
       setExecution({ status: 'success', result })
       recordAttempt(exercise.id, sql)
-      addHistoryEntry(exercise.id, sql, 'run-success')
+      addHistoryEntry(exercise.id, queryText, 'run-success')
     } catch (err) {
       const error = toQueryError(err)
       setExecution({ status: 'error', error })
       recordAttempt(exercise.id, sql)
-      addHistoryEntry(exercise.id, sql, 'run-error')
+      addHistoryEntry(exercise.id, queryText, 'run-error')
     }
+  }
+
+  function handleRun() {
+    return runQuery(sql)
+  }
+
+  function handleRunSelected() {
+    const selected = sqlEditorRef.current?.getSelectedText().trim()
+    return runQuery(selected || sql)
   }
 
   async function handleSubmit() {
@@ -147,6 +158,7 @@ export function Workspace({ exercise, theme, onPrev, onNext, hasPrev, hasNext }:
       <div className="flex min-h-0 flex-1 flex-col">
         <EditorToolbar
           onRun={handleRun}
+          onRunSelected={handleRunSelected}
           onSubmit={handleSubmit}
           onFormat={handleFormat}
           onReset={handleReset}
@@ -155,7 +167,7 @@ export function Workspace({ exercise, theme, onPrev, onNext, hasPrev, hasNext }:
         />
         <div className="min-h-[120px] flex-1">
           <Suspense fallback={<div className="flex h-full items-center justify-center text-xs text-text-muted">Loading editor...</div>}>
-            <SqlEditor value={sql} onChange={setSql} onRun={handleRun} theme={theme} />
+            <SqlEditor ref={sqlEditorRef} value={sql} onChange={setSql} onRun={handleRun} onSubmit={handleSubmit} onRunSelected={handleRunSelected} theme={theme} />
           </Suspense>
         </div>
         {!resultCollapsed && (
