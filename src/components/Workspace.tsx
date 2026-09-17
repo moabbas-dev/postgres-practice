@@ -113,7 +113,7 @@ export function Workspace({ exercise, theme, onPrev, onNext, hasPrev, hasNext }:
   const descChrome = isDesktop && !descriptionCollapsed
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
       <div
         className={`relative shrink-0 overflow-hidden border-b border-border-subtle lg:border-b-0 lg:border-r ${
           isDesktop ? '' : descriptionCollapsed ? 'h-9' : 'h-64'
@@ -155,7 +155,7 @@ export function Workspace({ exercise, theme, onPrev, onNext, hasPrev, hasNext }:
         )}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <EditorToolbar
           onRun={handleRun}
           onRunSelected={handleRunSelected}

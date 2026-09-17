@@ -93,7 +93,7 @@ function App() {
       ) : (
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
           <aside
-            className={`absolute inset-y-0 left-0 z-20 border-r border-border-subtle bg-canvas shadow-xl transition-transform lg:static lg:z-auto lg:translate-x-0 lg:shadow-none ${
+            className={`absolute inset-y-0 left-0 z-20 shrink-0 border-r border-border-subtle bg-canvas shadow-xl transition-transform lg:static lg:z-auto lg:translate-x-0 lg:shadow-none ${
               leftOpen ? 'translate-x-0' : '-translate-x-full'
             } ${isDesktop ? '' : 'w-72'}`}
             style={isDesktop ? { width: sidebarCollapsed ? 40 : sidebarWidth } : undefined}
@@ -139,7 +139,7 @@ function App() {
           />
 
           <aside
-            className={`absolute inset-y-0 right-0 z-20 w-80 border-l border-border-subtle bg-canvas shadow-xl transition-transform xl:static xl:z-auto xl:w-80 xl:translate-x-0 xl:shadow-none ${
+            className={`absolute inset-y-0 right-0 z-20 w-80 shrink-0 border-l border-border-subtle bg-canvas shadow-xl transition-transform xl:static xl:z-auto xl:w-80 xl:translate-x-0 xl:shadow-none ${
               rightOpen ? 'translate-x-0' : 'translate-x-full'
             }`}
           >
