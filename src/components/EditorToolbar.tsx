@@ -1,16 +1,17 @@
-import { Loader2, Play, RotateCcw, Sparkles, Send, TextSelect } from 'lucide-react'
+import { CaseUpper, Loader2, Play, RotateCcw, Sparkles, Send, TextSelect } from 'lucide-react'
 
 interface EditorToolbarProps {
   onRun: () => void
   onRunSelected: () => void
   onSubmit: () => void
   onFormat: () => void
+  onUppercaseKeywords: () => void
   onReset: () => void
   isRunning: boolean
   isSubmitting: boolean
 }
 
-export function EditorToolbar({ onRun, onRunSelected, onSubmit, onFormat, onReset, isRunning, isSubmitting }: EditorToolbarProps) {
+export function EditorToolbar({ onRun, onRunSelected, onSubmit, onFormat, onUppercaseKeywords, onReset, isRunning, isSubmitting }: EditorToolbarProps) {
   const busy = isRunning || isSubmitting
   return (
     <div className="flex min-w-0 items-center gap-2 overflow-x-auto border-b border-border-subtle bg-surface px-3 py-2">
@@ -48,6 +49,13 @@ export function EditorToolbar({ onRun, onRunSelected, onSubmit, onFormat, onRese
       <div className="ml-auto flex shrink-0 items-center gap-1">
         <button onClick={onFormat} title="Format query" className="rounded-md p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary cursor-pointer">
           <Sparkles className="h-4 w-4" />
+        </button>
+        <button
+          onClick={onUppercaseKeywords}
+          title="Uppercase SQL keywords"
+          className="rounded-md p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary cursor-pointer"
+        >
+          <CaseUpper className="h-4 w-4" />
         </button>
         <button onClick={onReset} title="Reset to starter query" className="rounded-md p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary cursor-pointer">
           <RotateCcw className="h-4 w-4" />

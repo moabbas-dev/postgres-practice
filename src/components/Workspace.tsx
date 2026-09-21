@@ -6,6 +6,7 @@ import { ResultPanel } from './ResultPanel'
 import { ResizeHandle } from './ResizeHandle'
 import { CollapsedRail } from './CollapsedRail'
 import { formatSql } from '../features/editor/formatSql'
+import { uppercaseKeywords } from '../features/editor/uppercaseKeywords'
 import { runUserQuery, toQueryError } from '../database/db'
 import { validateSubmission } from '../features/validation/validate'
 import { useProgressStore } from '../features/progress/store'
@@ -100,6 +101,10 @@ export function Workspace({ exercise, theme, onPrev, onNext, hasPrev, hasNext }:
     setSql((prev) => formatSql(prev))
   }
 
+  function handleUppercaseKeywords() {
+    setSql((prev) => uppercaseKeywords(prev))
+  }
+
   function handleReset() {
     setSql(exercise.starterQuery ?? DEFAULT_STARTER)
     setExecution({ status: 'idle' })
@@ -161,6 +166,7 @@ export function Workspace({ exercise, theme, onPrev, onNext, hasPrev, hasNext }:
           onRunSelected={handleRunSelected}
           onSubmit={handleSubmit}
           onFormat={handleFormat}
+          onUppercaseKeywords={handleUppercaseKeywords}
           onReset={handleReset}
           isRunning={execution.status === 'running' && !validation}
           isSubmitting={execution.status === 'running'}
