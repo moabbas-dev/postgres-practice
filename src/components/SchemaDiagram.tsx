@@ -1,4 +1,4 @@
-import { ArrowLeft, Key, Link2, Minus, Plus, RotateCcw, Table as TableIcon } from 'lucide-react'
+import { ArrowLeft, Info, Key, Link2, Minus, Plus, RotateCcw, Table as TableIcon, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { DATABASE_RELATIONSHIPS, DATABASE_TABLES } from '../data/schemaExplorer'
 import type { DatabaseRelationship, DatabaseTable } from '../types'
@@ -146,6 +146,7 @@ export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
   const [scale, setScale] = useState(1)
   const [hoveredTable, setHoveredTable] = useState<string | null>(null)
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
+  const [mobileLegendOpen, setMobileLegendOpen] = useState(false)
 
   const { boxesByTable, width, height } = useMemo(() => buildLayout(), [])
   const edges = useMemo(() => buildEdges(boxesByTable), [boxesByTable])
@@ -163,19 +164,21 @@ export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-canvas">
-      <div className="flex h-11 shrink-0 items-center gap-3 border-b border-border-subtle bg-surface px-3">
+      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border-subtle bg-surface px-2 sm:gap-3 sm:px-3">
         <button
           onClick={onBack}
-          className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+          className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Back
         </button>
-        <div className="h-4 w-px bg-border-subtle" />
-        <span className="text-sm font-semibold text-text-primary">Entity-relationship diagram</span>
-        <span className="hidden text-[11px] text-text-muted sm:inline">{DATABASE_TABLES.length} tables · {DATABASE_RELATIONSHIPS.length} relationships</span>
+        <div className="hidden h-4 w-px shrink-0 bg-border-subtle sm:block" />
+        <div className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary sm:flex-none">Entity-relationship diagram</div>
+        <span className="hidden shrink-0 text-[11px] text-text-muted md:inline">
+          {DATABASE_TABLES.length} tables · {DATABASE_RELATIONSHIPS.length} relationships
+        </span>
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <button
             onClick={() => setScale((s) => Math.max(0.5, Math.round((s - 0.1) * 10) / 10))}
             className="cursor-pointer rounded-md p-1.5 text-text-secondary hover:bg-surface-hover"
@@ -183,7 +186,7 @@ export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
           >
             <Minus className="h-4 w-4" />
           </button>
-          <span className="w-10 text-center text-[11px] tabular-nums text-text-muted">{Math.round(scale * 100)}%</span>
+          <span className="hidden w-10 text-center text-[11px] tabular-nums text-text-muted sm:inline">{Math.round(scale * 100)}%</span>
           <button
             onClick={() => setScale((s) => Math.min(1.6, Math.round((s + 0.1) * 10) / 10))}
             className="cursor-pointer rounded-md p-1.5 text-text-secondary hover:bg-surface-hover"
@@ -191,13 +194,24 @@ export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
           >
             <Plus className="h-4 w-4" />
           </button>
-          <button onClick={() => setScale(1)} className="cursor-pointer rounded-md p-1.5 text-text-secondary hover:bg-surface-hover" title="Reset zoom">
+          <button
+            onClick={() => setScale(1)}
+            className="hidden cursor-pointer rounded-md p-1.5 text-text-secondary hover:bg-surface-hover sm:block"
+            title="Reset zoom"
+          >
             <RotateCcw className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setMobileLegendOpen(true)}
+            className="cursor-pointer rounded-md p-1.5 text-text-secondary hover:bg-surface-hover lg:hidden"
+            title="Show legend and table details"
+          >
+            <Info className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      <div className="flex min-h-0 min-w-0 flex-1">
+      <div className="relative flex min-h-0 min-w-0 flex-1">
         <div className="min-h-0 min-w-0 flex-1 overflow-auto p-4">
           <svg
             width={width * scale}
@@ -266,6 +280,7 @@ export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
                     onClick={(e) => {
                       e.stopPropagation()
                       setSelectedTable(box.table.name)
+                      setMobileLegendOpen(true)
                     }}
                     className={`h-full w-full cursor-pointer overflow-hidden rounded-lg border bg-surface-raised shadow-sm transition-all ${
                       isHovered || selectedTable === box.table.name ? 'border-accent shadow-md' : 'border-border'
@@ -296,8 +311,25 @@ export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
           </svg>
         </div>
 
-        <div className="w-64 shrink-0 border-l border-border-subtle bg-surface p-3">
-          <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Legend</div>
+        {mobileLegendOpen && (
+          <div className="fixed inset-0 z-10 cursor-pointer bg-black/40 lg:hidden" onClick={() => setMobileLegendOpen(false)} />
+        )}
+
+        <div
+          className={`absolute inset-y-0 right-0 z-20 w-72 max-w-[85vw] overflow-y-auto border-l border-border-subtle bg-surface p-3 shadow-xl transition-transform lg:static lg:z-auto lg:w-64 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:shadow-none ${
+            mobileLegendOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Legend</div>
+            <button
+              onClick={() => setMobileLegendOpen(false)}
+              className="cursor-pointer rounded p-1 text-text-muted hover:bg-surface-hover hover:text-text-primary lg:hidden"
+              title="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
           <LegendRow color="var(--color-accent)" dash={undefined} label="One-to-many" />
           <LegendRow color="var(--color-success)" dash="5 3" label="Many-to-many (via join table)" />
           <LegendRow color="var(--color-text-muted)" dash="3 3" label="Self-referencing hierarchy" />
