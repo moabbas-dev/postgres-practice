@@ -13,7 +13,7 @@ import { useProgressStore } from '../features/progress/store'
 import { useHistoryStore } from '../features/progress/historyStore'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { usePersistedCollapsed, usePersistedSize } from '../hooks/useResizablePanel'
-import type { Exercise, QueryExecution, ValidationResult } from '../types'
+import type { Exercise, ExplainState, QueryExecution, ValidationResult } from '../types'
 import type { Theme } from '../hooks/useTheme'
 import type { SqlEditorHandle } from '../features/editor/SqlEditor'
 
@@ -45,6 +45,7 @@ export function Workspace({ exercise, theme, onPrev, onNext, hasPrev, hasNext }:
   const [sql, setSql] = useState(() => progress?.lastQuery ?? exercise.starterQuery ?? DEFAULT_STARTER)
   const [execution, setExecution] = useState<QueryExecution>({ status: 'idle' })
   const [validation, setValidation] = useState<ValidationResult | null>(null)
+  const [explainState, setExplainState] = useState<ExplainState>({ status: 'idle' })
   const sqlEditorRef = useRef<SqlEditorHandle>(null)
 
   const isDesktop = useMediaQuery('(min-width: 1024px)')
@@ -81,6 +82,19 @@ export function Workspace({ exercise, theme, onPrev, onNext, hasPrev, hasNext }:
     return runQuery(selected || sql)
   }
 
+  async function handleExplain(analyze: boolean) {
+    if (explainState.status === 'running') return
+    setExplainState({ status: 'running', analyzed: analyze })
+    try {
+      const result = await runUserQuery(`EXPLAIN ${analyze ? 'ANALYZE ' : ''}${sql}`)
+      const planColumn = result.columns[0]?.name ?? 'QUERY PLAN'
+      const lines = result.rows.map((row) => String(row[planColumn]))
+      setExplainState({ status: 'success', lines, analyzed: analyze })
+    } catch (err) {
+      setExplainState({ status: 'error', error: toQueryError(err), analyzed: analyze })
+    }
+  }
+
   async function handleSubmit() {
     if (execution.status === 'running') return
     setExecution({ status: 'running' })
@@ -109,6 +123,7 @@ export function Workspace({ exercise, theme, onPrev, onNext, hasPrev, hasNext }:
     setSql(exercise.starterQuery ?? DEFAULT_STARTER)
     setExecution({ status: 'idle' })
     setValidation(null)
+    setExplainState({ status: 'idle' })
   }
 
   function handleRestoreHistory(restoredSql: string) {
@@ -188,6 +203,8 @@ export function Workspace({ exercise, theme, onPrev, onNext, hasPrev, hasNext }:
             onDeleteHistory={deleteHistoryEntry}
             collapsed={resultCollapsed}
             onToggleCollapsed={() => setResultCollapsed(!resultCollapsed)}
+            explainState={explainState}
+            onExplain={handleExplain}
           />
         </div>
       </div>

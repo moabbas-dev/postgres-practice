@@ -131,6 +131,77 @@ describe('compareResults — ordered comparison', () => {
   })
 })
 
+describe('compareResults — row diff', () => {
+  it('marks the extra row and never leaks the missing row\'s content', () => {
+    const user = result(['name'], [{ name: 'Alice' }, { name: 'Bob' }, { name: 'Carol' }])
+    const expected = result(['name'], [{ name: 'Alice' }, { name: 'Dave' }, { name: 'Carol' }])
+    const r = compareResults(user, expected, unordered, 0)
+    expect(r.reason).toBe('wrong-values')
+    expect(r.rowDiff).toBeDefined()
+    expect(r.rowDiff!.columns).toEqual(['name'])
+    expect(r.rowDiff!.rows).toEqual([
+      { values: ['Alice'], status: 'match' },
+      { values: ['Bob'], status: 'extra' },
+      { values: ['Carol'], status: 'match' },
+    ])
+    expect(r.rowDiff!.missingCount).toBe(1)
+    // 'Dave' (the expected-but-missing value) must not appear anywhere in the diff.
+    expect(JSON.stringify(r.rowDiff)).not.toContain('Dave')
+  })
+
+  it('marks every user row as extra when nothing matches', () => {
+    const user = result(['name'], [{ name: 'Alice' }, { name: 'Bob' }])
+    const expected = result(['name'], [{ name: 'Carol' }, { name: 'Dave' }])
+    const r = compareResults(user, expected, unordered, 0)
+    expect(r.rowDiff!.rows.every((row) => row.status === 'extra')).toBe(true)
+    expect(r.rowDiff!.missingCount).toBe(2)
+  })
+
+  it('only consumes one expected copy per duplicate user row (multiset matching)', () => {
+    const user = result(['name'], [{ name: 'Alice' }, { name: 'Alice' }, { name: 'Alice' }])
+    const expected = result(['name'], [{ name: 'Alice' }])
+    const r = compareResults(user, expected, unordered, 0)
+    expect(r.rowDiff!.rows.filter((row) => row.status === 'match')).toHaveLength(1)
+    expect(r.rowDiff!.rows.filter((row) => row.status === 'extra')).toHaveLength(2)
+    expect(r.rowDiff!.missingCount).toBe(0)
+  })
+
+  it('shows all rows as matching when only the order is wrong', () => {
+    const user = result(['n'], [{ n: 2 }, { n: 1 }, { n: 3 }])
+    const expected = result(['n'], [{ n: 1 }, { n: 2 }, { n: 3 }])
+    const r = compareResults(user, expected, ordered, 0)
+    expect(r.reason).toBe('wrong-order')
+    expect(r.rowDiff!.rows.every((row) => row.status === 'match')).toBe(true)
+    expect(r.rowDiff!.missingCount).toBe(0)
+  })
+
+  it('diffs positionally when order matters and a specific row is wrong', () => {
+    const user = result(['n'], [{ n: 1 }, { n: 9 }, { n: 3 }])
+    const expected = result(['n'], [{ n: 1 }, { n: 2 }, { n: 3 }])
+    const r = compareResults(user, expected, ordered, 0)
+    expect(r.reason).toBe('wrong-values')
+    expect(r.rowDiff!.rows).toEqual([
+      { values: [1], status: 'match' },
+      { values: [9], status: 'extra' },
+      { values: [3], status: 'match' },
+    ])
+  })
+
+  it('does not attach a row diff for structural mismatches (nothing meaningful to diff)', () => {
+    const user = result(['name'], [{ name: 'Alice' }])
+    const expected = result(['name', 'age'], [{ name: 'Alice', age: 30 }])
+    const r = compareResults(user, expected, unordered, 0)
+    expect(r.reason).toBe('wrong-column-count')
+    expect(r.rowDiff).toBeUndefined()
+  })
+
+  it('does not attach a row diff on success', () => {
+    const a = result(['name'], [{ name: 'Alice' }])
+    const b = result(['name'], [{ name: 'Alice' }])
+    expect(compareResults(a, b, unordered, 0).rowDiff).toBeUndefined()
+  })
+})
+
 describe('compareResults — column name enforcement', () => {
   it('rejects mismatched column names when requireColumnNames is set', () => {
     const user = result(['first'], [{ first: 'Alice' }])

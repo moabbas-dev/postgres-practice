@@ -32,3 +32,9 @@ export interface QueryHistoryEntry {
   ranAt: number
   outcome: 'run-success' | 'run-error' | 'submit-ok' | 'submit-ko'
 }
+
+export type ExplainState =
+  | { status: 'idle' }
+  | { status: 'running'; analyzed: boolean }
+  | { status: 'success'; lines: string[]; analyzed: boolean }
+  | { status: 'error'; error: QueryError; analyzed: boolean }
