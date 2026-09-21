@@ -274,6 +274,7 @@ export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
             onClick={() => {
               if (wasDrag()) return
               setSelectedTable(null)
+              setMobileLegendOpen(false)
             }}
           >
             <defs>
@@ -369,11 +370,17 @@ export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
         </div>
 
         {mobileLegendOpen && (
-          <div className="fixed inset-0 z-10 cursor-pointer bg-black/40 lg:hidden" onClick={() => setMobileLegendOpen(false)} />
+          <div
+            className="fixed inset-0 z-10 cursor-pointer bg-black/40"
+            onClick={() => {
+              setMobileLegendOpen(false)
+              setSelectedTable(null)
+            }}
+          />
         )}
 
         <div
-          className={`absolute inset-y-0 right-0 z-20 w-72 max-w-[85vw] overflow-y-auto border-l border-border-subtle bg-surface p-3 shadow-xl transition-transform lg:static lg:z-auto lg:w-64 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:shadow-none ${
+          className={`absolute inset-y-0 right-0 z-20 w-72 max-w-[85vw] overflow-y-auto border-l border-border-subtle bg-surface p-3 shadow-xl transition-transform lg:relative lg:w-64 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:shadow-none ${
             mobileLegendOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
