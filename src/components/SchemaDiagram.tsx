@@ -1,5 +1,5 @@
 import { ArrowLeft, Info, Key, Link2, Minus, Plus, RotateCcw, Table as TableIcon, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { DATABASE_RELATIONSHIPS, DATABASE_TABLES } from '../data/schemaExplorer'
 import type { DatabaseRelationship, DatabaseTable } from '../types'
 
@@ -142,11 +142,60 @@ function buildEdges(boxesByTable: Record<string, Box>) {
   return edges
 }
 
+interface PanState {
+  startX: number
+  startY: number
+  scrollLeft: number
+  scrollTop: number
+  dragged: boolean
+}
+
 export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
   const [scale, setScale] = useState(1)
   const [hoveredTable, setHoveredTable] = useState<string | null>(null)
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
   const [mobileLegendOpen, setMobileLegendOpen] = useState(false)
+  const [isPanning, setIsPanning] = useState(false)
+
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const panStateRef = useRef<PanState | null>(null)
+
+  function handlePanStart(e: React.MouseEvent) {
+    if (e.button !== 0) return
+    const el = scrollRef.current
+    if (!el) return
+
+    const state: PanState = { startX: e.clientX, startY: e.clientY, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop, dragged: false }
+    panStateRef.current = state
+    setIsPanning(true)
+    const prevUserSelect = document.body.style.userSelect
+    document.body.style.userSelect = 'none'
+
+    function onMove(ev: MouseEvent) {
+      const dx = ev.clientX - state.startX
+      const dy = ev.clientY - state.startY
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) state.dragged = true
+      el!.scrollLeft = state.scrollLeft - dx
+      el!.scrollTop = state.scrollTop - dy
+    }
+    function onUp() {
+      setIsPanning(false)
+      document.body.style.userSelect = prevUserSelect
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      // Cleared on a delay so the click handler that fires right after mouseup can
+      // still see `dragged` and skip select/deselect if this was actually a pan.
+      setTimeout(() => {
+        if (panStateRef.current === state) panStateRef.current = null
+      }, 0)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  function wasDrag(): boolean {
+    return panStateRef.current?.dragged ?? false
+  }
 
   const { boxesByTable, width, height } = useMemo(() => buildLayout(), [])
   const edges = useMemo(() => buildEdges(boxesByTable), [boxesByTable])
@@ -212,13 +261,20 @@ export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
       </div>
 
       <div className="relative flex min-h-0 min-w-0 flex-1">
-        <div className="min-h-0 min-w-0 flex-1 overflow-auto p-4">
+        <div
+          ref={scrollRef}
+          onMouseDown={handlePanStart}
+          className={`min-h-0 min-w-0 flex-1 overflow-auto p-4 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+        >
           <svg
             width={width * scale}
             height={height * scale}
             viewBox={`0 0 ${width} ${height}`}
             className="block"
-            onClick={() => setSelectedTable(null)}
+            onClick={() => {
+              if (wasDrag()) return
+              setSelectedTable(null)
+            }}
           >
             <defs>
               <marker id="arrow-many" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -279,6 +335,7 @@ export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
                     onMouseLeave={() => setHoveredTable(null)}
                     onClick={(e) => {
                       e.stopPropagation()
+                      if (wasDrag()) return
                       setSelectedTable(box.table.name)
                       setMobileLegendOpen(true)
                     }}
