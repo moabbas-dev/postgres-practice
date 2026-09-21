@@ -210,6 +210,11 @@ export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
   )
 
   const selected = selectedTable ? DATABASE_TABLES.find((t) => t.name === selectedTable) : null
+  const selectedBox = selectedTable ? boxesByTable[selectedTable] : null
+  const connectedEdges = useMemo(
+    () => (selectedTable ? edges.filter((e) => e.fromTable === selectedTable || e.toTable === selectedTable) : []),
+    [edges, selectedTable],
+  )
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-canvas">
@@ -266,6 +271,7 @@ export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
           onMouseDown={handlePanStart}
           className={`min-h-0 min-w-0 flex-1 overflow-auto p-4 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
         >
+        <div className="relative" style={{ width: width * scale, height: height * scale }}>
           <svg
             width={width * scale}
             height={height * scale}
@@ -345,28 +351,43 @@ export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
                     }`}
                     style={{ opacity: dimmed ? 0.35 : 1 }}
                   >
-                    <div className="flex items-center gap-1.5 border-b border-border-subtle bg-surface px-2 py-1">
-                      <TableIcon className="h-3 w-3 shrink-0 text-accent" />
-                      <span className="truncate font-mono text-[11px] font-semibold text-text-primary">{box.table.name}</span>
-                      <span className="ml-auto shrink-0 text-[9px] text-text-muted">{box.table.columns.length} cols</span>
-                    </div>
-                    <div>
-                      {box.keyColumns.map((col) => (
-                        <div key={col.name} className="flex items-center gap-1 px-2" style={{ height: ROW_HEIGHT }}>
-                          {col.isPrimaryKey ? (
-                            <Key className="h-2.5 w-2.5 shrink-0 text-warning" />
-                          ) : (
-                            <Link2 className="h-2.5 w-2.5 shrink-0 text-accent" />
-                          )}
-                          <span className="truncate font-mono text-[10px] text-text-secondary">{col.name}</span>
-                        </div>
-                      ))}
-                    </div>
+                    <TableBoxContent box={box} />
                   </div>
                 </foreignObject>
               )
             })}
           </svg>
+
+          {selectedTable && selectedBox && (
+            <svg
+              width={width * scale}
+              height={height * scale}
+              viewBox={`0 0 ${width} ${height}`}
+              className="pointer-events-none absolute left-0 top-0 z-[15] block"
+            >
+              {connectedEdges.map((edge) => {
+                const color = edge.isSelf ? 'var(--color-text-muted)' : edge.kind === 'many-to-many' ? 'var(--color-success)' : 'var(--color-accent)'
+                const marker = edge.isSelf ? 'url(#arrow-self)' : edge.kind === 'many-to-many' ? 'url(#arrow-mtm)' : 'url(#arrow-many)'
+                const dash = edge.isSelf ? '3 3' : edge.kind === 'many-to-many' ? '5 3' : undefined
+                return (
+                  <path key={edge.key} d={edge.d} fill="none" stroke={color} strokeWidth={2.5} strokeDasharray={dash} opacity={1} markerEnd={marker}>
+                    <title>
+                      {edge.fromTable}.{edge.fromColumn} → {edge.toTable}.{edge.toColumn} ({edge.kind})
+                    </title>
+                  </path>
+                )
+              })}
+              <foreignObject x={selectedBox.x} y={selectedBox.y} width={selectedBox.width} height={selectedBox.height} style={{ overflow: 'visible' }}>
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="pointer-events-auto h-full w-full cursor-pointer overflow-hidden rounded-lg border-2 border-accent bg-surface-raised shadow-lg"
+                >
+                  <TableBoxContent box={selectedBox} />
+                </div>
+              </foreignObject>
+            </svg>
+          )}
+        </div>
         </div>
 
         {mobileLegendOpen && (
@@ -430,6 +451,26 @@ export function SchemaDiagram({ onBack }: SchemaDiagramProps) {
         </div>
       </div>
     </div>
+  )
+}
+
+function TableBoxContent({ box }: { box: Box }) {
+  return (
+    <>
+      <div className="flex items-center gap-1.5 border-b border-border-subtle bg-surface px-2 py-1">
+        <TableIcon className="h-3 w-3 shrink-0 text-accent" />
+        <span className="truncate font-mono text-[11px] font-semibold text-text-primary">{box.table.name}</span>
+        <span className="ml-auto shrink-0 text-[9px] text-text-muted">{box.table.columns.length} cols</span>
+      </div>
+      <div>
+        {box.keyColumns.map((col) => (
+          <div key={col.name} className="flex items-center gap-1 px-2" style={{ height: ROW_HEIGHT }}>
+            {col.isPrimaryKey ? <Key className="h-2.5 w-2.5 shrink-0 text-warning" /> : <Link2 className="h-2.5 w-2.5 shrink-0 text-accent" />}
+            <span className="truncate font-mono text-[10px] text-text-secondary">{col.name}</span>
+          </div>
+        ))}
+      </div>
+    </>
   )
 }
 
