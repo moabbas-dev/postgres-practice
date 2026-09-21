@@ -1,29 +1,101 @@
-const NEWLINE_BEFORE = [
+const CLAUSE_KEYWORDS = [
   'SELECT', 'FROM', 'WHERE', 'GROUP BY', 'HAVING', 'ORDER BY', 'LIMIT', 'OFFSET',
-  'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN', 'FULL OUTER JOIN', 'CROSS JOIN', 'JOIN',
-  'UNION ALL', 'UNION', 'INTERSECT', 'EXCEPT', 'WITH', 'ON',
-]
+  'FULL OUTER JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN', 'CROSS JOIN', 'JOIN',
+  'UNION ALL', 'UNION', 'INTERSECT', 'EXCEPT', 'WITH',
+].sort((a, b) => b.length - a.length)
 
-/** A lightweight, dependency-free SQL formatter: not a full parser, just
- * inserts newlines before major clause keywords and normalizes whitespace. */
+/** Rendered as an indented continuation of the clause above it, rather than its own top-level line. */
+const INDENT_KEYWORDS = ['ON']
+
+const ALL_KEYWORDS = [...CLAUSE_KEYWORDS, ...INDENT_KEYWORDS]
+
+function isWordChar(ch: string | undefined): boolean {
+  return !!ch && /[a-zA-Z0-9_]/.test(ch)
+}
+
+/**
+ * A lightweight, dependency-free SQL formatter — not a full parser, but it does walk the
+ * string tracking paren/bracket depth and quoted-string state, so it only breaks lines on
+ * clause keywords and commas that are genuinely at the top level of the statement (function
+ * arguments, array literals, and text inside string/identifier literals are left untouched).
+ */
 export function formatSql(sql: string): string {
-  let text = sql.trim().replace(/\s+/g, ' ')
-  if (!text) return text
+  const collapsed = sql.trim().replace(/\s+/g, ' ')
+  if (!collapsed) return collapsed
 
-  // Protect keywords inside string literals by temporarily not touching them —
-  // simple heuristic: split on unquoted regions.
-  const sorted = [...NEWLINE_BEFORE].sort((a, b) => b.length - a.length)
-  for (const kw of sorted) {
-    const pattern = new RegExp(`\\s+(${kw.replace(/ /g, '\\s+')})\\b`, 'gi')
-    text = text.replace(pattern, (_m, matched) => `\n${matched.toUpperCase()}`)
+  let depth = 0
+  let quote: string | null = null
+  let out = ''
+  let i = 0
+
+  function matchKeywordAt(pos: number): string | null {
+    const prev = collapsed[pos - 1]
+    if (pos !== 0 && prev !== ' ') return null
+    for (const kw of ALL_KEYWORDS) {
+      const end = pos + kw.length
+      if (collapsed.slice(pos, end).toUpperCase() === kw && !isWordChar(collapsed[end])) {
+        return kw
+      }
+    }
+    return null
   }
 
-  text = text.replace(/,\s*/g, ',\n  ')
-  text = text.replace(/\n{2,}/g, '\n')
+  while (i < collapsed.length) {
+    const ch = collapsed[i]
 
-  return text
+    if (quote) {
+      out += ch
+      if (ch === quote) quote = null
+      i++
+      continue
+    }
+
+    if (ch === "'" || ch === '"') {
+      quote = ch
+      out += ch
+      i++
+      continue
+    }
+
+    if (ch === '(' || ch === '[') {
+      depth++
+      out += ch
+      i++
+      continue
+    }
+    if (ch === ')' || ch === ']') {
+      depth = Math.max(0, depth - 1)
+      out += ch
+      i++
+      continue
+    }
+
+    if (depth === 0) {
+      const kw = matchKeywordAt(i)
+      if (kw) {
+        out = out.replace(/ +$/, '')
+        const isIndent = INDENT_KEYWORDS.includes(kw)
+        out += (isIndent ? '\n  ' : '\n') + kw
+        i += kw.length
+        continue
+      }
+      if (ch === ',') {
+        out += ',\n  '
+        i++
+        if (collapsed[i] === ' ') i++
+        continue
+      }
+    }
+
+    out += ch
+    i++
+  }
+
+  return out
+    .replace(/ +;/g, ';')
     .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
+    .map((line) => line.replace(/\s+$/, ''))
     .join('\n')
+    .replace(/\n{2,}/g, '\n')
+    .trim()
 }
